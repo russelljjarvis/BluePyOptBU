@@ -21,13 +21,17 @@ Copyright (c) 2016, EPFL/Blue Brain Project
 
 from .importer import neuron
 
+from .ephysobject import EPhysObject
 
-class Location(object):
+
+class Location(EPhysObject):
 
     """EPhys feature"""
 
     def __init__(self, name):
         """Constructor"""
+
+        super(Location, self).__init__()
 
         self.name = name
 

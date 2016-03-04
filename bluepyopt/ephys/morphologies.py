@@ -87,6 +87,11 @@ class NrnFileMorphology(Morphology):
 
         morphology_importer.instantiate(icell)
 
+        #for _ in range(10):
+        sim.neuron.h.pop_section()
+        #    print sim.neuron.h.secname()
+        #    sim.neuron.h.delete_section()
+
         # TODO Set nseg should be called after all the parameters have been
         # set
         # (in case e.g. Ra was changed)

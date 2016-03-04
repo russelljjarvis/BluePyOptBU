@@ -36,6 +36,7 @@ import responses  # NOQA
 import recordings  # NOQA
 import objectivescalculators  # NOQA
 import stimuli  # NOQA
+import ephysobject  # NOQA
 
 # TODO create all the necessary abstract methods
 # TODO check inheritance structure

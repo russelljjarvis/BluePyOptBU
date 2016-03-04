@@ -75,7 +75,8 @@ class NrnMODMechanism(Mechanism):
     def destroy(self):
         """Destroy mechanism instantiation"""
 
-        pass
+        for location in self.locations:
+            location.destroy()
 
     def __str__(self):
         """String representation"""

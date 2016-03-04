@@ -124,6 +124,9 @@ class CellModel(object):
             mechanism.destroy()
         for param in self.params.values():
             param.destroy()
+        import neuron
+        for sec in neuron.h.allsec():
+            neuron.h.delete_section(sec=sec)
 
     def check_nonfrozen_params(self, param_names):
         """Check if all nonfrozen params are set"""
