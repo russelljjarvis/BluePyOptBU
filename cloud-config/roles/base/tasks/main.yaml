@@ -1,0 +1,25 @@
+---
+#note: this is for debian and ubuntu distributions
+- name: update apt cache
+  apt: update_cache=yes
+
+- name: Install base packages
+  apt: name={{ item }} force=yes state=installed
+  with_items:
+    - build-essential
+    - git
+    - htop
+    - libreadline-dev
+    - libzmq3-dev
+    - ntp
+    - python-dev
+    - python-pip
+    - python-virtualenv
+    - unzip
+    #for matplotlib
+    - pkg-config
+    - libfreetype6-dev
+  tags: packages
+
+- name: Configure User
+  user: name={{ user_name }}
