@@ -145,8 +145,8 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         UPPER = []
 
         for parameter in self.evaluator.params:
-            LOWER.append(parameter.lower_bound)
-            UPPER.append(parameter.upper_bound)
+            LOWER.append(parameter[1])
+            UPPER.append(parameter[2])
 
         # Define a function that will uniformly pick an individual
         def uniform(lower_list, upper_list, dimensions):
