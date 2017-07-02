@@ -61,7 +61,7 @@ def getpid():
 
 print('new stuff:::: \n\n')
 
-'the pid {}'.format(getpid())
+'the pid {0}'.format(getpid())
 
 map_function = lview.map_sync
 
@@ -200,5 +200,5 @@ def main():
         fig_diversity.savefig('figures/l5pc_diversity.eps')
         plt.show()
 
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#   main()
