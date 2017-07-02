@@ -50,14 +50,20 @@ def evaluate(parameter_array):
 
     return evaluator.evaluate(parameter_array)
 
-if os.getenv('L5PCBENCHMARK_USEIPYP') == '1':
-    from ipyparallel import Client
-    rc = Client(profile=os.getenv('IPYTHON_PROFILE'))
-    lview = rc.load_balanced_view()
+from ipyparallel import Client
+rc = Client(profile=os.getenv('IPYTHON_PROFILE'))
+lview = rc.load_balanced_view()
 
-    map_function = lview.map_sync
-else:
-    map_function = None
+@lview.remote(block=True)
+def getpid():
+    import os
+    return os.getpid()
+
+print('new stuff:::: \n\n')
+
+'the pid {}'.format(getpid())
+
+map_function = lview.map_sync
 
 opt = bluepyopt.optimisations.DEAPOptimisation(
     evaluator=evaluator,

@@ -25,6 +25,7 @@ Copyright (c) 2016, EPFL/Blue Brain Project
 import random
 import logging
 import functools
+import numpy
 
 import deap
 import deap.base
@@ -62,6 +63,11 @@ class WeightedSumFitness(deap.base.Fitness):
         """Weighted sum of values"""
         return sum(self.values)
 
+    @property
+    def norm(self):
+        """Frobenius norm of values"""
+        return numpy.linalg.norm(self.values)
+
     def __le__(self, other):
         return self.weighted_sum <= other.weighted_sum
 
@@ -96,11 +102,12 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                  use_scoop=False,
                  seed=1,
                  offspring_size=10,
+                 elite_size=0,
                  eta=10,
                  mutpb=1.0,
                  cxpb=1.0,
                  map_function=None,
-                 hof=None,
+                 pf=None,
                  selector_name=None):
         """Constructor
 
@@ -125,6 +132,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.use_scoop = use_scoop
         self.seed = seed
         self.offspring_size = offspring_size
+        self.elite_size = elite_size
         self.eta = eta
         self.cxpb = cxpb
         self.mutpb = mutpb
@@ -136,7 +144,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         self.hof = hof
         if self.hof is None:
-            self.hof = deap.tools.HallOfFame(10)
+            self.pf = deap.tools.ParetoFront(10)
 
         # Create a DEAP toolbox
         self.toolbox = deap.base.Toolbox()
@@ -236,9 +244,9 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         def _reduce_method(meth):
             """Overwrite reduce"""
             return (getattr, (meth.__self__, meth.__func__.__name__))
-        import copyreg
+        import copy_reg
         import types
-        copyreg.pickle(types.MethodType, _reduce_method)
+        copy_reg.pickle(types.MethodType, _reduce_method)
 
         if self.use_scoop:
             if self.map_function:
@@ -268,6 +276,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Generate the population object
         pop = self.toolbox.population(n=offspring_size)
+        hof = deap.tools.ParetoFront(10)
 
         stats = deap.tools.Statistics(key=lambda ind: ind.fitness.sum)
         import numpy
@@ -284,12 +293,13 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             self.mutpb,
             max_ngen,
             stats=stats,
-            halloffame=self.hof,
+            halloffame=hof,
+            nelite=self.elite_size,
             cp_frequency=cp_frequency,
             continue_cp=continue_cp,
             cp_filename=cp_filename)
 
-        return pop, self.hof, log, history
+        return pop, pf, log, history
 
 
 class IBEADEAPOptimisation(DEAPOptimisation):

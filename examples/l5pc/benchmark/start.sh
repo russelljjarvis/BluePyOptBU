@@ -14,8 +14,8 @@ export IPYTHON_PROFILE=benchmark.${SLURM_JOBID}
 # ipython profile create --profile=${IPYTHON_PROFILE}
 ipcontroller --init --ip='*' --sqlitedb --profile=${IPYTHON_PROFILE} &
 sleep 10
-srun ipengine --profile=${IPYTHON_PROFILE} &
-
+ipengine --profile=${IPYTHON_PROFILE} &
+sleep 1
 CHECKPOINTS_DIR="checkpoints/run.${SLURM_JOBID}"
 mkdir -p ${CHECKPOINTS_DIR}
 
