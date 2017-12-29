@@ -71,7 +71,7 @@ def _calc_fitness_components(population, kappa):
                   numpy.min(population_matrix, axis=0))
 
     components_matrix = numpy.zeros((pop_len, pop_len))
-    for i in xrange(0, pop_len):
+    for i in range(0, pop_len):
         diff = population_matrix - population_matrix[i, :]
         components_matrix[i, :] = numpy.max(
             numpy.divide(
@@ -103,9 +103,9 @@ def _mating_selection(population, mu, tournament_n):
     """Returns the n_of_parents individuals with the best fitness"""
 
     parents = []
-    for _ in xrange(mu):
+    for _ in range(mu):
         winner = random.choice(population)
-        for _ in xrange(tournament_n - 1):
+        for _ in range(tournament_n - 1):
             individual = random.choice(population)
             # Save winner is element with smallest fitness
             if individual.ibea_fitness < winner.ibea_fitness:

@@ -132,8 +132,9 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
     def setnparams(self,nparams=10, provided_keys=None):
         from neuronunit.optimization import nsga_parallel
         self.nparams = nparams
-        params = nsga_parallel.create_subset(nparams=self.nparams,provided_keys=provided_keys)
-        return params
+        self.params = nsga_parallel.create_subset(nparams=self.nparams,provided_keys=provided_keys)
+        #self.params
+        return self.params
 
     def set_evaluate(self):
         from neuronunit.optimization import nsga_parallel
@@ -154,18 +155,24 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         ETA = self.eta
 
         # Number of parameters
-        
+        self.params = None
         # Bounds for the parameters
-        params = list(self.setnparams(nparams=10).values())
-        IND_SIZE = len(params)
+        params = self.setnparams(nparams=10)
+        #import pdb
+        #pdb.set_trace()
+        IND_SIZE = len(list(params.values()))
 
         LOWER = []
         UPPER = []
         OBJ_SIZE = 7
 
-        for parameter in params:
+        for parameter in list(params.values()):
             LOWER.append(min(parameter))
             UPPER.append(max(parameter))
+        print(LOWER)
+        print(UPPER)
+        print(params)
+        #import pdb; pdb.set_trace()
 
         # Define a function that will uniformly pick an individual
         def uniform(lower_list, upper_list, dimensions):
@@ -202,13 +209,17 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         # import deap_efel_eval1
 
         def custom_code(invalid_ind):
-            from neuronunit.optimization import nsga_parallel, evaluate
-            return_package = list(nsga_parallel.update_pop(invalid_ind,self.td))
+            from neuronunit.optimization import nsga_parallel
+            from neuronunit.optimization import evaluate_as_module
+            get_trans_dict = evaluate_as_module.get_trans_dict
+            td = get_trans_dict(self.params)
+            return_package = list(nsga_parallel.update_pop(invalid_ind,td))
             invalid_dtc = []
             for i,r in enumerate(return_package):
                 invalid_dtc.append(r[0])# = return_package[0][:]
                 invalid_ind[i] = r[1]
-            fitnesses = list(map(evaluate,invalid_dtc))
+            fitnesses = list(map(nsga_parallel.evaluate,invalid_dtc))
+            print(fitnesses)
             return fitnesses
 
         self.toolbox.register("evaluate", custom_code)
@@ -237,7 +248,12 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Register the selector (picks parents from population)
         self.toolbox.register("select", tools.selIBEA)
-
+        def _reduce_method(meth):
+            """Overwrite reduce"""
+            return (getattr, (meth.__self__, meth.__func__.__name__))
+        #import copy_reg
+        import types
+        #   copy_reg.pickle(types.MethodType, _reduce_method)
         self.toolbox.register("map", self.map_function)
 
     def run(self,
