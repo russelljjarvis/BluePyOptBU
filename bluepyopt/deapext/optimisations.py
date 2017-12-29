@@ -99,7 +99,6 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
     """DEAP Optimisation class"""
 
     def __init__(self, evaluator=None,
-                 use_scoop=False,
                  seed=1,
                  offspring_size=10,
                  elite_size=0,
@@ -109,27 +108,42 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                  map_function=None):
         """Constructor"""
 
-        super(DEAPOptimisation, self).__init__(evaluator=evaluator)
+        super(DEAPOptimisation, self).__init__()
 
-        self.use_scoop = use_scoop
+        #self.use_scoop = use_scoop
         self.seed = seed
         self.offspring_size = offspring_size
         self.elite_size = elite_size
         self.eta = eta
         self.cxpb = cxpb
         self.mutpb = mutpb
-        self.map_function = map_function
+        import ipyparallel as ipp
+        rc = ipp.Client(profile='default')
+        from ipyparallel import depend, require, dependent
+        dview = rc[:]
+
+        self.map_function = dview.map_sync
 
         # Create a DEAP toolbox
         self.toolbox = deap.base.Toolbox()
 
         self.setup_deap()
 
+    def setnparams(self,nparams=10, provided_keys=None):
+        from neuronunit.optimization import nsga_parallel
+        self.nparams = nparams
+        params = nsga_parallel.create_subset(nparams=self.nparams,provided_keys=provided_keys)
+        return params
+
+    def set_evaluate(self):
+        from neuronunit.optimization import nsga_parallel
+        self.toolbox.register("evaluate", nsga_parallel.evaluate)
+
     def setup_deap(self):
         """Set up optimisation"""
 
         # Number of objectives
-        OBJ_SIZE = len(self.evaluator.objectives)
+        #OBJ_SIZE = len(self.evaluator.objectives)
 
         # Set random seed
         random.seed(self.seed)
@@ -143,11 +157,11 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         IND_SIZE = len(self.evaluator.params)
 
         # Bounds for the parameters
-
+        params = list(self.setnparams(nparams=10).values())
         LOWER = []
         UPPER = []
 
-        for parameter in self.evaluator.params:
+        for parameter in params:
             LOWER.append(parameter.lower_bound)
             UPPER.append(parameter.upper_bound)
 
@@ -184,7 +198,20 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Register the evaluation function for the individuals
         # import deap_efel_eval1
-        self.toolbox.register("evaluate", self.evaluator.evaluate_with_lists)
+
+        def custom_code(invalid_ind):
+            from neuronunit.optimization import nsga_parallel, evaluate
+            return_package = list(nsga_parallel.update_pop(invalid_ind,self.td))
+            invalid_dtc = []
+            for i,r in enumerate(return_package):
+                invalid_dtc.append(r[0])# = return_package[0][:]
+                invalid_ind[i] = r[1]
+            fitnesses = list(map(evaluate,invalid_dtc))
+            return fitnesses
+
+        self.toolbox.register("evaluate", custom_code)
+
+        #self.toolbox.register("evaluate", evaluate)
 
         # Register the mate operator
         self.toolbox.register(
@@ -209,25 +236,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         # Register the selector (picks parents from population)
         self.toolbox.register("select", tools.selIBEA)
 
-        def _reduce_method(meth):
-            """Overwrite reduce"""
-            return (getattr, (meth.__self__, meth.__func__.__name__))
-        import copy_reg
-        import types
-        copy_reg.pickle(types.MethodType, _reduce_method)
-
-        if self.use_scoop:
-            if self.map_function:
-                raise Exception(
-                    'Impossible to use scoop is providing self '
-                    'defined map function: %s' %
-                    self.map_function)
-
-            from scoop import futures
-            self.toolbox.register("map", futures.map)
-
-        elif self.map_function:
-            self.toolbox.register("map", self.map_function)
+        self.toolbox.register("map", self.map_function)
 
     def run(self,
             max_ngen=10,
