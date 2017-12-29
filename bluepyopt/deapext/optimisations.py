@@ -100,7 +100,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
     def __init__(self, evaluator=None,
                  seed=1,
-                 offspring_size=10,
+                 offspring_size=15,
                  elite_size=0,
                  eta=10,
                  mutpb=1.0,
@@ -158,6 +158,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.params = None
         # Bounds for the parameters
         params = self.setnparams(nparams=10)
+        self.params = params
         #import pdb
         #pdb.set_trace()
         IND_SIZE = len(list(params.values()))
@@ -257,7 +258,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.toolbox.register("map", self.map_function)
 
     def run(self,
-            max_ngen=10,
+            max_ngen=25,
             offspring_size=None,
             continue_cp=False,
             cp_filename=None,
