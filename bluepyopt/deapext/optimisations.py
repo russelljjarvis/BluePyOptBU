@@ -154,16 +154,18 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         ETA = self.eta
 
         # Number of parameters
-        IND_SIZE = len(self.evaluator.params)
-
+        
         # Bounds for the parameters
         params = list(self.setnparams(nparams=10).values())
+        IND_SIZE = len(params)
+
         LOWER = []
         UPPER = []
+        OBJ_SIZE = 7
 
         for parameter in params:
-            LOWER.append(parameter.lower_bound)
-            UPPER.append(parameter.upper_bound)
+            LOWER.append(min(parameter))
+            UPPER.append(max(parameter))
 
         # Define a function that will uniformly pick an individual
         def uniform(lower_list, upper_list, dimensions):
