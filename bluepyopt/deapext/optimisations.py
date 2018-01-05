@@ -129,12 +129,20 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         self.setup_deap()
 
-    def setnparams(self,nparams=10, provided_keys=None):
+    def setnparams(self, nparams=10, provided_keys=None):
         from neuronunit.optimization import nsga_parallel
-        self.nparams = nparams
-        self.params = nsga_parallel.create_subset(nparams=self.nparams,provided_keys=provided_keys)
+        from neuronunit.optimization import evaluate_as_module
+
+        # = nparams
+        self.params = nsga_parallel.create_subset(nparams=nparams,provided_keys=provided_keys)
+        self.nparams = len(self.params)
+        #self.td = td
+        get_trans_dict = evaluate_as_module.get_trans_dict
+        self.td = get_trans_dict(self.params)
+        #print(self.params)
+        #import pdb; pdb.set_trace()
         #self.params
-        return self.params
+        return self.params, self.td
 
     def set_evaluate(self):
         from neuronunit.optimization import nsga_parallel
@@ -157,23 +165,15 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         # Number of parameters
         self.params = None
         # Bounds for the parameters
-        params = self.setnparams(nparams=10)
+        params, self.td = self.setnparams(nparams=10)
         self.params = params
-        #import pdb
-        #pdb.set_trace()
         IND_SIZE = len(list(params.values()))
 
-        LOWER = []
-        UPPER = []
         OBJ_SIZE = 7
+        import numpy as np
+        LOWER = [ np.min(self.params[v]) for k,v in self.td.items() ]
+        UPPER = [ np.max(self.params[v]) for k,v in self.td.items() ]
 
-        for parameter in list(params.values()):
-            LOWER.append(min(parameter))
-            UPPER.append(max(parameter))
-        print(LOWER)
-        print(UPPER)
-        print(params)
-        #import pdb; pdb.set_trace()
 
         # Define a function that will uniformly pick an individual
         def uniform(lower_list, upper_list, dimensions):
@@ -212,12 +212,15 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         def custom_code(invalid_ind):
             from neuronunit.optimization import nsga_parallel
             from neuronunit.optimization import evaluate_as_module
-            get_trans_dict = evaluate_as_module.get_trans_dict
-            td = get_trans_dict(self.params)
-            return_package = list(nsga_parallel.update_pop(invalid_ind,td))
+            #get_trans_dict = evaluate_as_module.get_trans_dict
+            #td = get_trans_dict(self.params)
+
+            return_package = list(nsga_parallel.update_pop(invalid_ind,self.td))
+            #import pdb; pdb.set_trace()
             invalid_dtc = []
             for i,r in enumerate(return_package):
                 invalid_dtc.append(r[0])# = return_package[0][:]
+                print(r[0].attrs)
                 invalid_ind[i] = r[1]
             fitnesses = list(map(nsga_parallel.evaluate,invalid_dtc))
             print(fitnesses)
@@ -249,12 +252,14 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Register the selector (picks parents from population)
         self.toolbox.register("select", tools.selIBEA)
+        '''
         def _reduce_method(meth):
             """Overwrite reduce"""
             return (getattr, (meth.__self__, meth.__func__.__name__))
         #import copy_reg
         import types
         #   copy_reg.pickle(types.MethodType, _reduce_method)
+        '''
         self.toolbox.register("map", self.map_function)
 
     def run(self,
@@ -295,7 +300,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             continue_cp=continue_cp,
             cp_filename=cp_filename)
 
-        return pop, hof, log, history
+        return pop, hof, log, history, self.td
 
 
 class IBEADEAPOptimisation(DEAPOptimisation):
