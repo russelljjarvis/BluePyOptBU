@@ -129,6 +129,15 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         self.setup_deap()
 
+
+    def get_trans_list(self,param_dict):
+        trans_list = []
+        for i,k in enumerate(list(param_dict.keys())):
+            trans_list.append(k)
+        return trans_list
+
+
+
     def setnparams(self, nparams=10, provided_keys=None):
         from neuronunit.optimization import nsga_parallel
         from neuronunit.optimization import evaluate_as_module
@@ -137,8 +146,10 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.params = nsga_parallel.create_subset(nparams=nparams,provided_keys=provided_keys)
         self.nparams = len(self.params)
         #self.td = td
-        get_trans_dict = evaluate_as_module.get_trans_dict
-        self.td = get_trans_dict(self.params)
+        #get_trans_dict = evaluate_as_module.get_trans_dict
+        self.td = self.get_trans_list(self.params)
+        print(self.td)
+        #import pdb; pdb.set_trace()
         #print(self.params)
         #import pdb; pdb.set_trace()
         #self.params
@@ -171,9 +182,11 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         OBJ_SIZE = 7
         import numpy as np
-        LOWER = [ np.min(self.params[v]) for k,v in self.td.items() ]
-        UPPER = [ np.max(self.params[v]) for k,v in self.td.items() ]
-
+        LOWER = [ np.min(self.params[v]) for v in self.td ]
+        print(LOWER)
+        UPPER = [ np.max(self.params[v]) for v in self.td ]
+        print(UPPER)
+        #import pdb; pdb.set_trace()
 
         # Define a function that will uniformly pick an individual
         def uniform(lower_list, upper_list, dimensions):
@@ -277,6 +290,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Generate the population object
         pop = self.toolbox.population(n=offspring_size)
+        #import pdb; pdb.set_trace()
         hof = deap.tools.HallOfFame(10)
 
         stats = deap.tools.Statistics(key=lambda ind: ind.fitness.sum)

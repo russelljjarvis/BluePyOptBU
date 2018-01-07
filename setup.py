@@ -28,8 +28,9 @@ setuptools.setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     install_requires=['numpy>=1.6', 'pandas>=0.18', 'deap', 'efel>=2.6',
-                      'scoop>=0.7', 'ipyparallel', ],
-    packages=setuptools.find_packages(exclude=('examples',)),
+                      'scoop>=0.7', 'ipyparallel', 'pickleshare>=0.7.3',
+                      'Jinja2>=2.8', 'future'],
+    packages=setuptools.find_packages(exclude=('examples', )),
     author="BlueBrain Project, EPFL",
     author_email="werner.vangeit@epfl.ch",
     description="Bluebrain Python Optimisation Library (bluepyopt)",
@@ -49,4 +50,8 @@ setuptools.setup(
         'Operating System :: POSIX',
         'Topic :: Scientific/Engineering',
         'Topic :: Utilities'],
-    package_data={})
+
+    package_data={
+        'bluepyopt': ['ephys/templates/cell_template.jinja2',
+                      'ephys/examples/simplecell/simple.swc'],
+    })
