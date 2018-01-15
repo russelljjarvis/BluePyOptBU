@@ -300,7 +300,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         stats.register("min", numpy.min)
         stats.register("max", numpy.max)
 
-        pop, log, history = algorithms.eaAlphaMuPlusLambdaCheckpoint(
+        pop, log, history, gen_vs_hof = algorithms.eaAlphaMuPlusLambdaCheckpoint(
             pop,
             self.toolbox,
             offspring_size,
@@ -314,7 +314,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             continue_cp=continue_cp,
             cp_filename=cp_filename)
 
-        return pop, hof, log, history, self.td
+        return pop, hof, log, history, self.td, gen_vs_hof
 
 
 class IBEADEAPOptimisation(DEAPOptimisation):
