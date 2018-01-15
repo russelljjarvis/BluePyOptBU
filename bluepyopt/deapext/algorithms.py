@@ -1,6 +1,9 @@
 """Optimisation class"""
 
 """
+
+
+
 Copyright (c) 2016, EPFL/Blue Brain Project
 
  This file is part of BluePyOpt <https://github.com/BlueBrain/BluePyOpt>
@@ -50,11 +53,11 @@ def _update_history_and_hof(halloffame, history, population):
 
     Note: History and Hall-of-Fame behave like dictionaries
     '''
+    
     if halloffame is not None:
         halloffame.update(population)
 
     history.update(population)
-
 
 def _record_stats(stats, logbook, gen, population, invalid_count):
     '''Update the statistics with the new population'''
@@ -130,11 +133,11 @@ def eaAlphaMuPlusLambdaCheckpoint(
         invalid_count = _evaluate_invalid_fitness(toolbox, population)
         _update_history_and_hof(halloffame, history, population)
         _record_stats(stats, logbook, start_gen, population, invalid_count)
-
+    gen_vs_hof = []
     # Begin the generational process
     for gen in range(start_gen + 1, ngen + 1):
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
-
+        gen_vs_hof.append(halloffame[-1])
         population = parents + offspring
 
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
