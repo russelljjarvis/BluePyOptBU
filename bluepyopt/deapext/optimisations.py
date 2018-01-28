@@ -105,7 +105,8 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                  eta=10,
                  mutpb=1.0,
                  cxpb=1.0,
-                 map_function=None):
+                 map_function=None,
+                 CPU_NUM=None):
         """Constructor"""
 
         super(DEAPOptimisation, self).__init__()
@@ -117,12 +118,13 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.eta = eta
         self.cxpb = cxpb
         self.mutpb = mutpb
-        import ipyparallel as ipp
-        rc = ipp.Client(profile='default')
-        from ipyparallel import depend, require, dependent
-        dview = rc[:]
-
-        self.map_function = dview.map_sync
+        self.CPU_NUM = CPU_NUM
+        #import ipyparallel as ipp
+        #rc = ipp.Client(profile='default')
+        #from ipyparallel import depend, require, dependent
+        #dview = rc[:]
+        #import dask.bag as db
+        #self.map_function = map
 
         # Create a DEAP toolbox
         self.toolbox = deap.base.Toolbox()
@@ -140,7 +142,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
     def setnparams(self, nparams=10, provided_keys=None):
         from neuronunit.optimization import nsga_parallel
-        from neuronunit.optimization import evaluate_as_module
+        #from neuronunit.optimization import evaluate_as_module
 
         # = nparams
         self.params = nsga_parallel.create_subset(nparams=nparams,provided_keys=provided_keys)
@@ -224,19 +226,25 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         def custom_code(invalid_ind):
             from neuronunit.optimization import nsga_parallel
-            from neuronunit.optimization import evaluate_as_module
-            #get_trans_dict = evaluate_as_module.get_trans_dict
-            #td = get_trans_dict(self.params)
-
-            return_package = list(nsga_parallel.update_pop(invalid_ind,self.td))
-            #import pdb; pdb.set_trace()
+            import dask.bag as db
+            return_package = list(nsga_parallel.update_pop(invalid_ind,self.td))#, CPU_NUM=self.CPU_NUM))
             invalid_dtc = []
             for i,r in enumerate(return_package):
                 invalid_dtc.append(r[0])# = return_package[0][:]
-                print(r[0].attrs)
                 invalid_ind[i] = r[1]
-            fitnesses = list(map(nsga_parallel.evaluate,invalid_dtc))
-            print(fitnesses)
+
+            from dask.distributed import Client
+            client = Client()
+            ncores = client.ncores()
+            partitions = len(list(ncores.values()))
+            import copy
+
+            invalid_dtc = list(map(nsga_parallel.pre_format,invalid_dtc))
+            b = None
+            b = db.from_sequence(copy.copy(invalid_dtc), npartitions=partitions)
+            invalid_dtc = list(db.map(nsga_parallel.nunit_evaluation,b).compute())
+            b = db.from_sequence(invalid_dtc, npartitions=partitions)
+            fitnesses = list(db.map(nsga_parallel.evaluate,b).compute())
             return fitnesses
 
         self.toolbox.register("evaluate", custom_code)
@@ -273,7 +281,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         import types
         #   copy_reg.pickle(types.MethodType, _reduce_method)
         '''
-        self.toolbox.register("map", self.map_function)
+        #self.toolbox.register("map", self.map_function)
 
     def run(self,
             max_ngen=25,
@@ -292,7 +300,8 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         pop = self.toolbox.population(n=offspring_size)
         #import pdb; pdb.set_trace()
         hof = deap.tools.HallOfFame(10)
-
+        hof.update(pop)
+        init_value = hof
         stats = deap.tools.Statistics(key=lambda ind: ind.fitness.sum)
         import numpy
         stats.register("avg", numpy.mean)
@@ -314,6 +323,8 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             continue_cp=continue_cp,
             cp_filename=cp_filename)
 
+        # insert the initial HOF value back in.    
+        gen_vs_hof.insert(0,init_value)
         return pop, hof, log, history, self.td, gen_vs_hof
 
 
