@@ -1,9 +1,4 @@
-"""Optimisation class"""
-
-"""
-
-
-
+"""Optimisation class
 Copyright (c) 2016, EPFL/Blue Brain Project
 
  This file is part of BluePyOpt <https://github.com/BlueBrain/BluePyOpt>
@@ -53,7 +48,7 @@ def _update_history_and_hof(halloffame, history, population):
 
     Note: History and Hall-of-Fame behave like dictionaries
     '''
-    
+
     if halloffame is not None:
         halloffame.update(population)
 
@@ -87,12 +82,13 @@ def eaAlphaMuPlusLambdaCheckpoint(
         cxpb,
         mutpb,
         ngen,
-        stats=None,
-        halloffame=None,
-        nelite=0,
-        cp_frequency=1,
-        cp_filename=None,
-        continue_cp=False):
+        stats = None,
+        halloffame = None,
+        nelite = 0,
+        cp_frequency = 1,
+        cp_filename = None,
+        continue_cp = False,
+        selection = 'nsga'):
     r"""This is the :math:`(~\alpha,\mu~,~\lambda)` evolutionary algorithm
 
     Args:
@@ -131,9 +127,10 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         # TODO this first loop should be not be repeated !
         invalid_count = _evaluate_invalid_fitness(toolbox, population)
+        gen_vs_hof = []
         _update_history_and_hof(halloffame, history, population)
+        gen_vs_hof.append(halloffame[-1])
         _record_stats(stats, logbook, start_gen, population, invalid_count)
-    gen_vs_hof = []
     # Begin the generational process
     for gen in range(start_gen + 1, ngen + 1):
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
@@ -143,9 +140,20 @@ def eaAlphaMuPlusLambdaCheckpoint(
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
         _update_history_and_hof(halloffame, history, population)
         _record_stats(stats, logbook, gen, population, invalid_count)
+        #import deap.tools
 
         # Select the next generation parents
-        parents = toolbox.select(population + _get_elite(halloffame, nelite), mu)
+        if selection == str('ngsa'):
+           from . import tools
+           toolbox.register("select", tools.selNSGA2)
+           #parents = toolbox.select(population + _get_elite(halloffame, nelite), mu)
+
+           parents = toolbox.select(population, mu)
+
+        elif selection == str('selIBEA'):
+           from . import tools
+           toolbox.register("select", tools.selIBEA)
+           parents = toolbox.select(population + _get_elite(halloffame, nelite), mu)
 
         logger.info(logbook.stream)
 
@@ -161,4 +169,4 @@ def eaAlphaMuPlusLambdaCheckpoint(
             pickle.dump(cp, open(cp_filename, "wb"))
             logger.debug('Wrote checkpoint to %s', cp_filename)
 
-    return population, logbook, history
+    return population, logbook, history, gen_vs_hof

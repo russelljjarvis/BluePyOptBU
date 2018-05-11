@@ -6,7 +6,7 @@ Copyright (c) 2016, EPFL/Blue Brain Project
  This file is part of BluePyOpt <https://github.com/BlueBrain/BluePyOpt>
 
  This library is free software; you can redistribute it and/or modify it under
- the terms of the GNU Lesser General Public License version 3.0 as published
+ the terms of the Lesser General Public License version 3.0 as published
  by the Free Software Foundation.
 
  This library is distributed in the hope that it will be useful, but WITHOUT
@@ -98,7 +98,26 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
     """DEAP Optimisation class"""
 
-    def __init__(self, evaluator=None,
+    def get_trans_list(self,param_dict):
+        trans_list = []
+        for i,k in enumerate(list(param_dict.keys())):
+            trans_list.append(k)
+        return trans_list
+
+    def setnparams(self, nparams = 10, provided_dict = None):
+        from neuronunit.optimization import optimization_management
+        #print(provided_dict)
+        #import pdb; pdb.set_trace()
+        self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
+        self.nparams = len(self.params)
+        self.td = self.get_trans_list(self.params)
+        #print(self.td)
+        return self.params, self.td
+
+
+    def __init__(self, error_criterion = None, evaluator = None,
+                 selection = 'selIBEA',
+                 benchmark = False,
                  seed=1,
                  offspring_size=15,
                  elite_size=0,
@@ -106,60 +125,39 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                  mutpb=1.0,
                  cxpb=1.0,
                  map_function=None,
-                 CPU_NUM=None):
+                 backend=None,
+                 nparams = 10,
+                 provided_dict= {}):
         """Constructor"""
 
         super(DEAPOptimisation, self).__init__()
-
-        #self.use_scoop = use_scoop
+        self.selection = selection
+        self.benchmark = benchmark
+        self.error_criterion = error_criterion
         self.seed = seed
         self.offspring_size = offspring_size
         self.elite_size = elite_size
         self.eta = eta
         self.cxpb = cxpb
         self.mutpb = mutpb
-        self.CPU_NUM = CPU_NUM
-        #import ipyparallel as ipp
-        #rc = ipp.Client(profile='default')
-        #from ipyparallel import depend, require, dependent
-        #dview = rc[:]
-        #import dask.bag as db
-        #self.map_function = map
-
+        #self.CPU_NUM = CPU_NUM
+        self.backend = backend
         # Create a DEAP toolbox
         self.toolbox = deap.base.Toolbox()
+        self.setnparams(nparams = nparams, provided_dict = provided_dict)
 
         self.setup_deap()
 
 
-    def get_trans_list(self,param_dict):
-        trans_list = []
-        for i,k in enumerate(list(param_dict.keys())):
-            trans_list.append(k)
-        return trans_list
-
-
-
-    def setnparams(self, nparams=10, provided_keys=None):
-        from neuronunit.optimization import nsga_parallel
-        #from neuronunit.optimization import evaluate_as_module
-
-        # = nparams
-        self.params = nsga_parallel.create_subset(nparams=nparams,provided_keys=provided_keys)
-        self.nparams = len(self.params)
-        #self.td = td
-        #get_trans_dict = evaluate_as_module.get_trans_dict
-        self.td = self.get_trans_list(self.params)
-        print(self.td)
-        #import pdb; pdb.set_trace()
-        #print(self.params)
-        #import pdb; pdb.set_trace()
-        #self.params
-        return self.params, self.td
 
     def set_evaluate(self):
-        from neuronunit.optimization import nsga_parallel
-        self.toolbox.register("evaluate", nsga_parallel.evaluate)
+        if self.benchmark == True:
+            self.toolbox.register("evaluate", benchmarks.zdt1)
+        else:
+            #from neuronunit.optimization.optimization_management import OptMan
+            #optimization_management = OptMan()
+            from neuronunit.optimization import optimization_management
+            self.toolbox.register("evaluate", optimization_management.evaluate)
 
     def setup_deap(self):
         """Set up optimisation"""
@@ -176,20 +174,17 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         ETA = self.eta
 
         # Number of parameters
-        self.params = None
+        #self.params = None
         # Bounds for the parameters
-        params, self.td = self.setnparams(nparams=10)
-        self.params = params
-        IND_SIZE = len(list(params.values()))
+        #params, self.td = self.setnparams(nparams=10)
+        #self.params = params
+        IND_SIZE = len(list(self.params.values()))
 
-        OBJ_SIZE = 7
+        OBJ_SIZE = len(self.error_criterion)
         import numpy as np
+        import pdb; pdb.set_trace()
         LOWER = [ np.min(self.params[v]) for v in self.td ]
-        print(LOWER)
         UPPER = [ np.max(self.params[v]) for v in self.td ]
-        print(UPPER)
-        #import pdb; pdb.set_trace()
-
         # Define a function that will uniformly pick an individual
         def uniform(lower_list, upper_list, dimensions):
             """Fill array """
@@ -222,35 +217,22 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             self.toolbox.Individual)
 
         # Register the evaluation function for the individuals
-        # import deap_efel_eval1
-
         def custom_code(invalid_ind):
-            from neuronunit.optimization import nsga_parallel
-            import dask.bag as db
-            return_package = list(nsga_parallel.update_pop(invalid_ind,self.td))#, CPU_NUM=self.CPU_NUM))
-            invalid_dtc = []
-            for i,r in enumerate(return_package):
-                invalid_dtc.append(r[0])# = return_package[0][:]
-                invalid_ind[i] = r[1]
+            from neuronunit.optimization.optimization_management import evaluate, map_wrapper, update_deap_pop
 
-            from dask.distributed import Client
-            client = Client()
-            ncores = client.ncores()
-            partitions = len(list(ncores.values()))
-            import copy
-
-            invalid_dtc = list(map(nsga_parallel.pre_format,invalid_dtc))
-            b = None
-            b = db.from_sequence(copy.copy(invalid_dtc), npartitions=partitions)
-            invalid_dtc = list(db.map(nsga_parallel.nunit_evaluation,b).compute())
-            b = db.from_sequence(invalid_dtc, npartitions=partitions)
-            fitnesses = list(db.map(nsga_parallel.evaluate,b).compute())
+            #from neuronunit.optimization.optimization_management.OptMan import evaluate, map_wrapper, update_deap_pop
+            #optimization_management = OptMan()
+            #from neuronunit.optimization.optimization_management import evaluate, map_wrapper, update_deap_pop
+            if self.backend is not None:
+                return_package = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
+            else:
+                return_package = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
+            invalid_dtc = [i[0] for i in return_package ]
+            invalid_ind = [i[1] for i in return_package ]
+            fitnesses = list(map(evaluate,invalid_dtc))
             return fitnesses
 
         self.toolbox.register("evaluate", custom_code)
-
-        #self.toolbox.register("evaluate", evaluate)
-
         # Register the mate operator
         self.toolbox.register(
             "mate",
@@ -272,23 +254,17 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.toolbox.register("variate", deap.algorithms.varAnd)
 
         # Register the selector (picks parents from population)
-        self.toolbox.register("select", tools.selIBEA)
-        '''
-        def _reduce_method(meth):
-            """Overwrite reduce"""
-            return (getattr, (meth.__self__, meth.__func__.__name__))
-        #import copy_reg
-        import types
-        #   copy_reg.pickle(types.MethodType, _reduce_method)
-        '''
-        #self.toolbox.register("map", self.map_function)
+        if self.selection == str('ngsa'):
+            self.toolbox.register("select", tools.selNSGA2)
+        elif self.selection == str('selIBEA'):
+            self.toolbox.register("select", tools.selIBEA)
 
     def run(self,
             max_ngen=25,
             offspring_size=None,
             continue_cp=False,
             cp_filename=None,
-            cp_frequency=1):
+            cp_frequency=0):
         """Run optimisation"""
         # Allow run function to override offspring_size
         # TODO probably in the future this should not be an object field anymore
@@ -298,7 +274,6 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Generate the population object
         pop = self.toolbox.population(n=offspring_size)
-        #import pdb; pdb.set_trace()
         hof = deap.tools.HallOfFame(10)
         hof.update(pop)
         init_value = hof
@@ -321,9 +296,10 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             nelite=self.elite_size,
             cp_frequency=cp_frequency,
             continue_cp=continue_cp,
-            cp_filename=cp_filename)
+            cp_filename=cp_filename,
+            selection = self.selection)
 
-        # insert the initial HOF value back in.    
+        # insert the initial HOF value back in.
         gen_vs_hof.insert(0,init_value)
         return pop, hof, log, history, self.td, gen_vs_hof
 
