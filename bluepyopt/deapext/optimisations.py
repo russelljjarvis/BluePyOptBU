@@ -177,6 +177,12 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         import numpy as np
         LOWER = [ np.min(self.params[v]) for v in self.td ]
         UPPER = [ np.max(self.params[v]) for v in self.td ]
+        for index, i in enumerate(UPPER):
+            if i == LOWER[index]:
+                LOWER[index]-=2.0
+                i+=2.0
+
+        import pdb; pdb.set_trace()
         # Define a function that will uniformly pick an individual
         def uniform(lower_list, upper_list, dimensions):
             """Fill array """
