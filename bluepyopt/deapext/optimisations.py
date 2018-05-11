@@ -106,12 +106,9 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
     def setnparams(self, nparams = 10, provided_dict = None):
         from neuronunit.optimization import optimization_management
-        #print(provided_dict)
-        #import pdb; pdb.set_trace()
         self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
         self.nparams = len(self.params)
         self.td = self.get_trans_list(self.params)
-        #print(self.td)
         return self.params, self.td
 
 
@@ -174,15 +171,10 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         ETA = self.eta
 
         # Number of parameters
-        #self.params = None
         # Bounds for the parameters
-        #params, self.td = self.setnparams(nparams=10)
-        #self.params = params
         IND_SIZE = len(list(self.params.values()))
-
         OBJ_SIZE = len(self.error_criterion)
         import numpy as np
-        import pdb; pdb.set_trace()
         LOWER = [ np.min(self.params[v]) for v in self.td ]
         UPPER = [ np.max(self.params[v]) for v in self.td ]
         # Define a function that will uniformly pick an individual
