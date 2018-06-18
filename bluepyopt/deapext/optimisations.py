@@ -20,6 +20,7 @@ Copyright (c) 2016, EPFL/Blue Brain Project
 """
 
 # pylint: disable=R0912, R0914
+from neuronunit.optimization import optimization_management
 
 
 import random
@@ -36,6 +37,7 @@ from . import algorithms
 from . import tools
 
 import bluepyopt.optimisations
+import numpy
 
 logger = logging.getLogger('__main__')
 
@@ -43,6 +45,8 @@ logger = logging.getLogger('__main__')
 # TODO abstract the algorithm by creating a class for every algorithm, that way
 # settings of the algorithm can be stored in objects of these classes
 
+from neuronunit.optimization.optimization_management import evaluate, update_deap_pop
+from neuronunit.optimization import optimization_management
 
 class WeightedSumFitness(deap.base.Fitness):
 
@@ -90,13 +94,34 @@ class WSListIndividual(list):
     def __init__(self, *args, **kwargs):
         """Constructor"""
         self.fitness = WeightedSumFitness(obj_size=kwargs['obj_size'])
+        self.dtc = None
+        self.rheobase = None
         del kwargs['obj_size']
         super(WSListIndividual, self).__init__(*args, **kwargs)
+'''
+class SciUnitOptimization(DEAPOptimisation):
+
+    def __init__(self, *args, **kwargs):
+        super(SciUnitOptimization, self).__init__(self,**kwargs)
+        self.selection = selection
+        self.benchmark = benchmark
+        self.setnparams(nparams = nparams, provided_dict = provided_dict)
 
 
-class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
-
-    """DEAP Optimisation class"""
+        error_criterion = None,
+        evaluator = None,
+        selection = 'selIBEA',
+        benchmark = False,
+        seed=1,
+        offspring_size=15,
+        elite_size=0,
+        eta=10,
+        mutpb=1.0,
+        cxpb=1.0,
+        map_function=None,
+        backend=None,
+        nparams = 10,
+        provided_dict= {}
 
     def get_trans_list(self,param_dict):
         trans_list = []
@@ -105,11 +130,32 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         return trans_list
 
     def setnparams(self, nparams = 10, provided_dict = None):
-        from neuronunit.optimization import optimization_management
         self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
         self.nparams = len(self.params)
         self.td = self.get_trans_list(self.params)
         return self.params, self.td
+
+    def set_evaluate(self):
+        if self.benchmark == True:
+            self.toolbox.register("evaluate", benchmarks.zdt1)
+        else:
+            self.toolbox.register("evaluate", optimization_management.evaluate)
+
+    def custom_code(invalid_ind):
+        if self.backend is None:
+            invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
+        else:
+            invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
+        assert len(invalid_pop) != 0
+        invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
+
+        fitnesses = list(map(evaluate, invalid_dtc))
+        return fitnesses
+'''
+class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
+
+    """DEAP Optimisation class"""
+
 
 
     def __init__(self, error_criterion = None, evaluator = None,
@@ -117,7 +163,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                  benchmark = False,
                  seed=1,
                  offspring_size=15,
-                 elite_size=0,
+                 elite_size=3,
                  eta=10,
                  mutpb=1.0,
                  cxpb=1.0,
@@ -130,6 +176,8 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         super(DEAPOptimisation, self).__init__()
         self.selection = selection
         self.benchmark = benchmark
+        self.setnparams(nparams = nparams, provided_dict = provided_dict)
+
         self.error_criterion = error_criterion
         self.seed = seed
         self.offspring_size = offspring_size
@@ -137,31 +185,34 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.eta = eta
         self.cxpb = cxpb
         self.mutpb = mutpb
-        #self.CPU_NUM = CPU_NUM
         self.backend = backend
         # Create a DEAP toolbox
         self.toolbox = deap.base.Toolbox()
         self.setnparams(nparams = nparams, provided_dict = provided_dict)
-
         self.setup_deap()
 
+
+    def get_trans_list(self,param_dict):
+        trans_list = []
+        for i,k in enumerate(list(param_dict.keys())):
+            trans_list.append(k)
+        return trans_list
+
+    def setnparams(self, nparams = 10, provided_dict = None):
+        self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
+        self.nparams = len(self.params)
+        self.td = self.get_trans_list(self.params)
+        return self.params, self.td
 
 
     def set_evaluate(self):
         if self.benchmark == True:
             self.toolbox.register("evaluate", benchmarks.zdt1)
         else:
-            #from neuronunit.optimization.optimization_management import OptMan
-            #optimization_management = OptMan()
-            from neuronunit.optimization import optimization_management
             self.toolbox.register("evaluate", optimization_management.evaluate)
 
     def setup_deap(self):
         """Set up optimisation"""
-
-        # Number of objectives
-        #OBJ_SIZE = len(self.evaluator.objectives)
-
         # Set random seed
         random.seed(self.seed)
 
@@ -177,12 +228,12 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         import numpy as np
         LOWER = [ np.min(self.params[v]) for v in self.td ]
         UPPER = [ np.max(self.params[v]) for v in self.td ]
-        for index, i in enumerate(UPPER):
-            if i == LOWER[index]:
-                LOWER[index]-=2.0
-                i+=2.0
+        if self.backend == 'glif':
+            for index, i in enumerate(UPPER):
+                if i == LOWER[index]:
+                    LOWER[index]-=2.0
+                    i+=2.0
 
-        import pdb; pdb.set_trace()
         # Define a function that will uniformly pick an individual
         def uniform(lower_list, upper_list, dimensions):
             """Fill array """
@@ -216,19 +267,14 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Register the evaluation function for the individuals
         def custom_code(invalid_ind):
-            from neuronunit.optimization.optimization_management import evaluate, map_wrapper, update_deap_pop
-
-            #from neuronunit.optimization.optimization_management.OptMan import evaluate, map_wrapper, update_deap_pop
-            #optimization_management = OptMan()
-            #from neuronunit.optimization.optimization_management import evaluate, map_wrapper, update_deap_pop
-            if self.backend is not None:
-                return_package = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
+            if self.backend is None:
+                invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
             else:
-                return_package = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
-            invalid_dtc = [i[0] for i in return_package ]
-            invalid_ind = [i[1] for i in return_package ]
-            fitnesses = list(map(evaluate,invalid_dtc))
-            return fitnesses
+                invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
+            assert len(invalid_pop) != 0
+            invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
+            fitnesses = list(map(evaluate, invalid_dtc))
+            return (invalid_pop,fitnesses)
 
         self.toolbox.register("evaluate", custom_code)
         # Register the mate operator
@@ -251,11 +297,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         # Register the variate operator
         self.toolbox.register("variate", deap.algorithms.varAnd)
 
-        # Register the selector (picks parents from population)
-        if self.selection == str('ngsa'):
-            self.toolbox.register("select", tools.selNSGA2)
-        elif self.selection == str('selIBEA'):
-            self.toolbox.register("select", tools.selIBEA)
+        #self.toolbox.register("select", tools.selIBEA)
 
     def run(self,
             max_ngen=25,
@@ -272,17 +314,15 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Generate the population object
         pop = self.toolbox.population(n=offspring_size)
-        hof = deap.tools.HallOfFame(10)
-        hof.update(pop)
-        init_value = hof
+        hof = deap.tools.HallOfFame(offspring_size)
+        pf = deap.tools.ParetoFront(offspring_size)
+
         stats = deap.tools.Statistics(key=lambda ind: ind.fitness.sum)
-        import numpy
         stats.register("avg", numpy.mean)
         stats.register("std", numpy.std)
         stats.register("min", numpy.min)
         stats.register("max", numpy.max)
-
-        pop, log, history, gen_vs_hof = algorithms.eaAlphaMuPlusLambdaCheckpoint(
+        pop, hof, pf, log, history, gen_vs_hof = algorithms.eaAlphaMuPlusLambdaCheckpoint(
             pop,
             self.toolbox,
             offspring_size,
@@ -291,15 +331,17 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             max_ngen,
             stats=stats,
             halloffame=hof,
+            pf=pf,
             nelite=self.elite_size,
             cp_frequency=cp_frequency,
             continue_cp=continue_cp,
             cp_filename=cp_filename,
-            selection = self.selection)
+            selection = self.selection,
+            td = self.td)
 
         # insert the initial HOF value back in.
-        gen_vs_hof.insert(0,init_value)
-        return pop, hof, log, history, self.td, gen_vs_hof
+        td = self.td
+        return pop, hof, pf, log, history, td, gen_vs_hof
 
 
 class IBEADEAPOptimisation(DEAPOptimisation):
