@@ -47,6 +47,7 @@ logger = logging.getLogger('__main__')
 
 from neuronunit.optimization.optimization_management import evaluate, update_deap_pop
 from neuronunit.optimization import optimization_management
+import numpy as np
 
 class WeightedSumFitness(deap.base.Fitness):
 
@@ -98,60 +99,22 @@ class WSListIndividual(list):
         self.rheobase = None
         del kwargs['obj_size']
         super(WSListIndividual, self).__init__(*args, **kwargs)
-'''
-class SciUnitOptimization(DEAPOptimisation):
 
+    def set_fitness(self,obj_size):
+        self.fitness = WeightedSumFitness(obj_size=obj_size)
+
+
+class WSFloatIndividual(float):
+    """Individual consisting of list with weighted sum field"""
     def __init__(self, *args, **kwargs):
-        super(SciUnitOptimization, self).__init__(self,**kwargs)
-        self.selection = selection
-        self.benchmark = benchmark
-        self.setnparams(nparams = nparams, provided_dict = provided_dict)
+        """Constructor"""
+        self.dtc = None
+        self.rheobase = None
+        super(WSFloatIndividual, self).__init__()
 
+    def set_fitness(self,obj_size):
+        self.fitness = WeightedSumFitness(obj_size=obj_size)
 
-        error_criterion = None,
-        evaluator = None,
-        selection = 'selIBEA',
-        benchmark = False,
-        seed=1,
-        offspring_size=15,
-        elite_size=0,
-        eta=10,
-        mutpb=1.0,
-        cxpb=1.0,
-        map_function=None,
-        backend=None,
-        nparams = 10,
-        provided_dict= {}
-
-    def get_trans_list(self,param_dict):
-        trans_list = []
-        for i,k in enumerate(list(param_dict.keys())):
-            trans_list.append(k)
-        return trans_list
-
-    def setnparams(self, nparams = 10, provided_dict = None):
-        self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
-        self.nparams = len(self.params)
-        self.td = self.get_trans_list(self.params)
-        return self.params, self.td
-
-    def set_evaluate(self):
-        if self.benchmark == True:
-            self.toolbox.register("evaluate", benchmarks.zdt1)
-        else:
-            self.toolbox.register("evaluate", optimization_management.evaluate)
-
-    def custom_code(invalid_ind):
-        if self.backend is None:
-            invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
-        else:
-            invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
-        assert len(invalid_pop) != 0
-        invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
-
-        fitnesses = list(map(evaluate, invalid_dtc))
-        return fitnesses
-'''
 class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
     """DEAP Optimisation class"""
@@ -225,38 +188,57 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         # Bounds for the parameters
         IND_SIZE = len(list(self.params.values()))
         OBJ_SIZE = len(self.error_criterion)
-        import numpy as np
         LOWER = [ np.min(self.params[v]) for v in self.td ]
         UPPER = [ np.max(self.params[v]) for v in self.td ]
+
         if self.backend == 'glif':
             for index, i in enumerate(UPPER):
                 if i == LOWER[index]:
                     LOWER[index]-=2.0
                     i+=2.0
 
-        # Define a function that will uniformly pick an individual
-        def uniform(lower_list, upper_list, dimensions):
-            """Fill array """
 
+        def grid_sample_init(lower_list, upper_list, dimensions):
+            """Fill array """
             if hasattr(lower_list, '__iter__'):
-                return [random.uniform(lower, upper) for lower, upper in
+                grid_init = [np.linspace(lower.max(),upper.min(),len(upper_list)) for lower, upper in
                         zip(lower_list, upper_list)]
             else:
-                return [random.uniform(lower_list, upper_list)
+                grid_init = [np.linspace(lower_list.min(),upper_list.max(),len(upper_list))
                         for _ in range(dimensions)]
+            return grid_init
 
+        if IND_SIZE ==1 :
+            v = self.td[0]
+            self.grid_init = np.linspace(np.min(self.params[v]) ,np.max(self.params[v]) ,self.offspring_size)
+            #print(self.grid_init)
+            #import pdb; pdb.set_trace()
+        else:
+            self.grid_init = grid_sample_init(LOWER, UPPER, IND_SIZE)
+
+
+
+        def uniform_params(lower_list, upper_list, dimensions):
+            if hasattr(lower_list, '__iter__'):
+                other = [random.uniform(lower, upper) for lower, upper in zip(lower_list, upper_list)]
+            else:
+                other = [random.uniform(lower_list, upper_list)
+                    for _ in range(dimensions)]
+            return other
         # Register the 'uniform' function
-        self.toolbox.register("uniformparams", uniform, LOWER, UPPER, IND_SIZE)
+        self.toolbox.register("uniform_params", uniform_params, LOWER, UPPER, IND_SIZE)
 
-        # Register the individual format
-        # An indiviual is create by WSListIndividual and parameters
-        # are initially
-        # picked by 'uniform'
+
+        def init_grid():
+            flat_iter = [ grid_sample_init(LOWER, UPPER, IND_SIZE) ]
+            flat_iter = [ WSListIndividual(i, obj_size=OBJ_SIZE) for i in flat_iter ]
+            return flat_iter
+
         self.toolbox.register(
             "Individual",
             deap.tools.initIterate,
             functools.partial(WSListIndividual, obj_size=OBJ_SIZE),
-            self.toolbox.uniformparams)
+            self.toolbox.uniform_params)
 
         # Register the population format. It is a list of individuals
         self.toolbox.register(
@@ -264,6 +246,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             deap.tools.initRepeat,
             list,
             self.toolbox.Individual)
+
 
         # Register the evaluation function for the individuals
         def custom_code(invalid_ind):
@@ -299,6 +282,13 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         #self.toolbox.register("select", tools.selIBEA)
 
+    def set_pop(self):
+        IND_SIZE = len(list(self.params.values()))
+        OBJ_SIZE = len(self.error_criterion)
+        if IND_SIZE == 1:
+            pop = [ WSListIndividual([g],obj_size=OBJ_SIZE) for g in self.grid_init ]
+        return pop
+
     def run(self,
             max_ngen=25,
             offspring_size=None,
@@ -312,8 +302,13 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         if offspring_size is None:
             offspring_size = self.offspring_size
 
-        # Generate the population object
-        pop = self.toolbox.population(n=offspring_size)
+        #pop = self.toolbox.population(n=offspring_size)
+
+        pop = self.set_pop()
+            #pop = []
+            #for p in self.grid_init[0]:
+            #    pop.append(WSListIndividual(p,obj_size = OBJ_SIZE))
+        #pop = pop_
         hof = deap.tools.HallOfFame(offspring_size)
         pf = deap.tools.ParetoFront(offspring_size)
 
@@ -352,3 +347,57 @@ class IBEADEAPOptimisation(DEAPOptimisation):
         """Constructor"""
 
         super(IBEADEAPOptimisation, self).__init__(*args, **kwargs)
+'''
+class SciUnitOptimization(DEAPOptimisation):
+
+    def __init__(self, *args, **kwargs):
+        super(SciUnitOptimization, self).__init__(self,**kwargs)
+        self.selection = selection
+        self.benchmark = benchmark
+        self.setnparams(nparams = nparams, provided_dict = provided_dict)
+
+
+        error_criterion = None,
+        evaluator = None,
+        selection = 'selIBEA',
+        benchmark = False,
+        seed=1,
+        offspring_size=15,
+        elite_size=0,
+        eta=10,
+        mutpb=1.0,
+        cxpb=1.0,
+        map_function=None,
+        backend=None,
+        nparams = 10,
+        provided_dict= {}
+
+    def get_trans_list(self,param_dict):
+        trans_list = []
+        for i,k in enumerate(list(param_dict.keys())):
+            trans_list.append(k)
+        return trans_list
+
+    def setnparams(self, nparams = 10, provided_dict = None):
+        self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
+        self.nparams = len(self.params)
+        self.td = self.get_trans_list(self.params)
+        return self.params, self.td
+
+    def set_evaluate(self):
+        if self.benchmark == True:
+            self.toolbox.register("evaluate", benchmarks.zdt1)
+        else:
+            self.toolbox.register("evaluate", optimization_management.evaluate)
+
+    def custom_code(invalid_ind):
+        if self.backend is None:
+            invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
+        else:
+            invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
+        assert len(invalid_pop) != 0
+        invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
+
+        fitnesses = list(map(evaluate, invalid_dtc))
+        return fitnesses
+'''

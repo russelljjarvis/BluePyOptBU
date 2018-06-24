@@ -17,8 +17,6 @@ Copyright (c) 2016, EPFL/Blue Brain Project
  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
 
-# pylint: disable=R0914, R0912
-
 
 import random
 import logging
@@ -66,9 +64,7 @@ def _update_history_and_hof(halloffame,pf, history, population,td):
         except:
             print(population)
     history.update(population)
-    for h in halloffame:
-        print(bool(hasattr(h,'dtc')))
-        print(bool(hasattr(h.dtc,'score')))
+
     return (halloffame,pf)
 
 
@@ -89,9 +85,8 @@ def _get_elite(halloffame, nelite):
 
     if nelite > 0 and halloffame is not None:
         normsorted_idx = numpy.argsort([ind.fitness.norm for ind in halloffame])
-        hofst = [(sum(h.dtc.scores.values()),h.dtc) for h in halloffame ]
-        ranked = sorted(hofst, key=lambda w: w[0],reverse = True)
-        #print('the elite method 1 {0} method 2 {1}'.format(ranked[1].scores.values(),  normsorted_idx))
+        #hofst = [(sum(h.dtc.scores.values()),h.dtc) for h in halloffame ]
+        #ranked = sorted(hofst, key=lambda w: w[0],reverse = True)
         return [halloffame[idx] for idx in normsorted_idx[:nelite]]
     else:
         return list()
@@ -110,7 +105,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
         cp_frequency = 1,
         cp_filename = None,
         continue_cp = False,
-        selection = 'selIBEA',
+        selection = 'selNSGA2',
         td=None):
     print(halloffame,pf)
 
@@ -151,31 +146,18 @@ def eaAlphaMuPlusLambdaCheckpoint(
         regular_pop_fit = [p.fitness.values for p in population]
         offspring_fit = np.mean([p.fitness.values for p in offspring])
 
-        for p in population:
-            try:
-                assert hasattr(p,'dtc')
-            except:
-                raise ValueError('no dtc')
-
-            try:
-                assert hasattr(p.dtc,'score')
-            except:
-                raise ValueError('no dtc score')
-
         halloffame, pf = _update_history_and_hof(halloffame,pf, history, population, td)
         gen_vs_hof.append(halloffame[-1])
         _record_stats(stats, logbook, gen, population, invalid_count)
-        set = False
-        if str('selIBEA') in selection:
+        set_ = False
+
+        if str('selIBEA') == selection:
             toolbox.register("select", tools.selIBEA)
-            print(toolbox.select)
-            set = True
-        if str('selNSGA2') in selection:
+            set_ = True
+        if str('selNSGA') == selection:
             toolbox.register("select",selNSGA2)
-            print(toolbox.select)
-            set = True
-        print(toolbox.select)
-        assert set == True
+            set_ = True
+
         parents = toolbox.select(population + _get_elite(halloffame, nelite), mu)
         print('compare parents to population fitness here')
         breeder_fit = [ p.fitness.values for p in parents ]
@@ -183,18 +165,6 @@ def eaAlphaMuPlusLambdaCheckpoint(
         print('gen {0}_ breeder fit {1} regular pot fit _{2}'.format(str(gen),len(parents),len(population)))
         print('gen {0}_ breeder fit {1} regular pot fit _{2}'.format(str(gen),len(breeder_fit),len(regular_pop_fit)))
 
-        try:
-            assert np.min(regular_pop_fit) > np.min(breeder_fit)
-        except:
-            pass
-        try:
-            assert np.mean(breeder_fit) != np.mean(offspring_fit)
-        except:
-            pass
-        try:
-            assert np.mean(regular_pop_fit) > np.mean(offspring_fit)
-        except:
-            pass
         logger.info(logbook.stream)
 
         if(cp_filename):# and cp_frequency and
