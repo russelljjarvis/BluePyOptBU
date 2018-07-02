@@ -30,7 +30,7 @@ import copy
 from neuronunit.optimization import optimization_management as om
 
 import pdb
-
+import math
 from . import tools
 import numpy as np
 
@@ -136,36 +136,39 @@ def eaAlphaMuPlusLambdaCheckpoint(
         gen_vs_hof.append(halloffame)
         _record_stats(stats, logbook, start_gen, population, invalid_count)
     # Begin the generational process
+    gen_vs_pop = []
     for gen in range(start_gen + 1, ngen + 1):
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
         population = parents + offspring
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
-        invalid_count = len(invalid_count)
-
-        breeder_fit = np.mean([p.fitness.values for p in parents])
-        regular_pop_fit = [p.fitness.values for p in population]
-        offspring_fit = np.mean([p.fitness.values for p in offspring])
-
         halloffame, pf = _update_history_and_hof(halloffame,pf, history, population, td)
-        gen_vs_hof.append(halloffame[-1])
         _record_stats(stats, logbook, gen, population, invalid_count)
         set_ = False
+        toolbox.register("select", tools.selIBEA)
 
+        '''
         if str('selIBEA') == selection:
-            toolbox.register("select", tools.selIBEA)
-            set_ = True
+            set_ = False
         if str('selNSGA') == selection:
             toolbox.register("select",selNSGA2)
             set_ = True
+        assert set_ == True
+        '''
+        elite = _get_elite(halloffame, nelite)
 
-        parents = toolbox.select(population + _get_elite(halloffame, nelite), mu)
-        print('compare parents to population fitness here')
-        breeder_fit = [ p.fitness.values for p in parents ]
-        regular_pop_fit = [ p.fitness.values for p in population ]
-        print('gen {0}_ breeder fit {1} regular pot fit _{2}'.format(str(gen),len(parents),len(population)))
-        print('gen {0}_ breeder fit {1} regular pot fit _{2}'.format(str(gen),len(breeder_fit),len(regular_pop_fit)))
+        parents = toolbox.select(population, mu)
+
 
         logger.info(logbook.stream)
+        '''
+        with open('pre_grid_reports.p','rb') as f:
+            [grid_results,nparams] = pickle.load(f)
+        from neuronunit.optimization import results_analysis as ra
+        new_report = ra.make_report(grid_results,copy.copy(population), nparams, pop = copy.copy(population))
+        if new_report[nparams]['better'] == True:
+            print('terminating condition')
+            break
+        '''
 
         if(cp_filename):# and cp_frequency and
            #gen % cp_frequency == 0):
@@ -180,4 +183,6 @@ def eaAlphaMuPlusLambdaCheckpoint(
             print('Wrote checkpoint to %s', cp_filename)
             logger.debug('Wrote checkpoint to %s', cp_filename)
 
-    return population, halloffame, pf, logbook, history, gen_vs_hof
+        gen_vs_pop.append(copy.copy(population))
+
+    return population, halloffame, pf, logbook, history, gen_vs_pop

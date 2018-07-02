@@ -208,11 +208,11 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                         for _ in range(dimensions)]
             return grid_init
 
-        if IND_SIZE ==1 :
+        if IND_SIZE == 1 :
             v = self.td[0]
             self.grid_init = np.linspace(np.min(self.params[v]) ,np.max(self.params[v]) ,self.offspring_size)
-            #print(self.grid_init)
-            #import pdb; pdb.set_trace()
+
+
         else:
             self.grid_init = grid_sample_init(LOWER, UPPER, IND_SIZE)
 
@@ -287,6 +287,9 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         OBJ_SIZE = len(self.error_criterion)
         if IND_SIZE == 1:
             pop = [ WSListIndividual([g],obj_size=OBJ_SIZE) for g in self.grid_init ]
+        else:
+            pop = [ WSListIndividual(g, obj_size=OBJ_SIZE) for g in self.grid_init ]
+
         return pop
 
     def run(self,
@@ -302,13 +305,9 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         if offspring_size is None:
             offspring_size = self.offspring_size
 
-        #pop = self.toolbox.population(n=offspring_size)
-
-        pop = self.set_pop()
-            #pop = []
-            #for p in self.grid_init[0]:
-            #    pop.append(WSListIndividual(p,obj_size = OBJ_SIZE))
-        #pop = pop_
+        pop = self.toolbox.population(n=offspring_size)
+        pop_ = self.set_pop()
+        assert pop[0] != pop[1]
         hof = deap.tools.HallOfFame(offspring_size)
         pf = deap.tools.ParetoFront(offspring_size)
 
