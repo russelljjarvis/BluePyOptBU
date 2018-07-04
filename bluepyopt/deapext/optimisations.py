@@ -155,16 +155,37 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.setup_deap()
 
 
+
+    def transdict(dictionaries):
+        from collections import OrderedDict
+        mps = OrderedDict()
+        sk = sorted(list(dictionaries.keys()))
+        for k in sk:
+            mps[k] = dictionaries[k]
+        return mps
+
+
     def get_trans_list(self,param_dict):
+        from collections import OrderedDict
+        mps = OrderedDict()
+        sk = list(sorted(list(param_dict.keys())))
+        trans_list = []
+        for i,k in enumerate(sk):
+            mps[k] = param_dict[k]
+            trans_list.append(k)
+        return trans_list, mps
+
+        #return list(mps.keys())
+        '''
         trans_list = []
         for i,k in enumerate(list(param_dict.keys())):
             trans_list.append(k)
         return trans_list
-
+        '''
     def setnparams(self, nparams = 10, provided_dict = None):
         self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
         self.nparams = len(self.params)
-        self.td = self.get_trans_list(self.params)
+        self.td, mps = self.get_trans_list(self.params)
         return self.params, self.td
 
 
@@ -173,6 +194,25 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             self.toolbox.register("evaluate", benchmarks.zdt1)
         else:
             self.toolbox.register("evaluate", optimization_management.evaluate)
+
+
+    def grid_sample_init(self, nparams):
+        from neuronunit.optimization import exhaustive_search as es
+        npoints = self.offspring_size ** (1.0/len(list(self.params)))
+        dic_grid, _ = es.create_grid(npoints = npoints,nparams=2)#,provided_keys=None)
+        delta = int(np.abs(len(dic_grid) - (npoints ** len(list(self.params)))))
+        pop = []
+        for dg in dic_grid:
+            temp = list(dg.values())
+            pop.append(temp)
+        for d in range(0,delta):
+            impute = []
+            for i in range(0,len(pop[0])):
+                impute.append(np.mean([ p[i] for p in pop ]))
+            pop.append(impute)
+        print(len(pop),npoints ** len(list(self.params)))
+        assert len(pop) == int(npoints ** len(list(self.params)))
+        return pop
 
     def setup_deap(self):
         """Set up optimisation"""
@@ -198,15 +238,6 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                     i+=2.0
 
 
-        def grid_sample_init(lower_list, upper_list, dimensions):
-            """Fill array """
-            if hasattr(lower_list, '__iter__'):
-                grid_init = [np.linspace(lower.max(),upper.min(),len(upper_list)) for lower, upper in
-                        zip(lower_list, upper_list)]
-            else:
-                grid_init = [np.linspace(lower_list.min(),upper_list.max(),len(upper_list))
-                        for _ in range(dimensions)]
-            return grid_init
 
         if IND_SIZE == 1 :
             v = self.td[0]
@@ -214,7 +245,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
 
         else:
-            self.grid_init = grid_sample_init(LOWER, UPPER, IND_SIZE)
+            self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
 
 
 
@@ -229,10 +260,6 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.toolbox.register("uniform_params", uniform_params, LOWER, UPPER, IND_SIZE)
 
 
-        def init_grid():
-            flat_iter = [ grid_sample_init(LOWER, UPPER, IND_SIZE) ]
-            flat_iter = [ WSListIndividual(i, obj_size=OBJ_SIZE) for i in flat_iter ]
-            return flat_iter
 
         self.toolbox.register(
             "Individual",
@@ -283,6 +310,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         #self.toolbox.register("select", tools.selIBEA)
 
     def set_pop(self):
+
         IND_SIZE = len(list(self.params.values()))
         OBJ_SIZE = len(self.error_criterion)
         if IND_SIZE == 1:
@@ -306,8 +334,9 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             offspring_size = self.offspring_size
 
         pop = self.toolbox.population(n=offspring_size)
-        pop_ = self.set_pop()
-        assert pop[0] != pop[1]
+        pop = self.set_pop()#offspring_size)
+        #pop = pop_
+
         hof = deap.tools.HallOfFame(offspring_size)
         pf = deap.tools.ParetoFront(offspring_size)
 
@@ -316,7 +345,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         stats.register("std", numpy.std)
         stats.register("min", numpy.min)
         stats.register("max", numpy.max)
-        pop, hof, pf, log, history, gen_vs_hof = algorithms.eaAlphaMuPlusLambdaCheckpoint(
+        pop, hof, pf, log, history, gen_vs_pop = algorithms.eaAlphaMuPlusLambdaCheckpoint(
             pop,
             self.toolbox,
             offspring_size,
@@ -335,7 +364,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # insert the initial HOF value back in.
         td = self.td
-        return pop, hof, pf, log, history, td, gen_vs_hof
+        return pop, hof, pf, log, history, td, gen_vs_pop
 
 
 class IBEADEAPOptimisation(DEAPOptimisation):

@@ -44,6 +44,7 @@ def _evaluate_invalid_fitness(toolbox, population):
     Returns the count of individuals with invalid fitness
     '''
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
+    #import pdb; pdb.set_trace()
     invalid_pop,fitnesses = toolbox.evaluate(invalid_ind)
     for ind, fit in zip(invalid_pop,fitnesses):
         ind.fitness.values = fit
@@ -108,6 +109,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
         selection = 'selNSGA2',
         td=None):
     print(halloffame,pf)
+    gen_vs_pop = []
 
     if continue_cp:
         # A file name has been given, then load the data from the file
@@ -123,6 +125,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
         # Start a new evolution
         start_gen = 1
         parents = population[:]
+        gen_vs_pop.append(population)
         logbook = deap.tools.Logbook()
         logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
         history = deap.tools.History()
@@ -136,26 +139,27 @@ def eaAlphaMuPlusLambdaCheckpoint(
         gen_vs_hof.append(halloffame)
         _record_stats(stats, logbook, start_gen, population, invalid_count)
     # Begin the generational process
-    gen_vs_pop = []
     for gen in range(start_gen + 1, ngen + 1):
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
         population = parents + offspring
+        gen_vs_pop.append(population)
+
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
         halloffame, pf = _update_history_and_hof(halloffame,pf, history, population, td)
         _record_stats(stats, logbook, gen, population, invalid_count)
         set_ = False
-        toolbox.register("select", tools.selIBEA)
+        #toolbox.register("select", tools.selIBEA)
 
-        '''
+
         if str('selIBEA') == selection:
             set_ = False
         if str('selNSGA') == selection:
             toolbox.register("select",selNSGA2)
             set_ = True
         assert set_ == True
-        '''
-        elite = _get_elite(halloffame, nelite)
 
+        elite = _get_elite(halloffame, nelite)
+        gen_vs_pop.append(copy.copy(population))
         parents = toolbox.select(population, mu)
 
 
@@ -183,6 +187,9 @@ def eaAlphaMuPlusLambdaCheckpoint(
             print('Wrote checkpoint to %s', cp_filename)
             logger.debug('Wrote checkpoint to %s', cp_filename)
 
-        gen_vs_pop.append(copy.copy(population))
+
+        print(len(gen_vs_pop), gen-1)
+        print(set(gen_vs_pop[-1][0].dtc.attrs.values()) in set(population[0].dtc.attrs.values()))
+        print(gen_vs_pop)
 
     return population, halloffame, pf, logbook, history, gen_vs_pop
