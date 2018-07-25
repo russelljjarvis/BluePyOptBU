@@ -44,7 +44,6 @@ def _evaluate_invalid_fitness(toolbox, population):
     Returns the count of individuals with invalid fitness
     '''
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
-    #import pdb; pdb.set_trace()
     invalid_pop,fitnesses = toolbox.evaluate(invalid_ind)
     for ind, fit in zip(invalid_pop,fitnesses):
         ind.fitness.values = fit
@@ -74,12 +73,21 @@ def _record_stats(stats, logbook, gen, population, invalid_count):
     record = stats.compile(population) if stats is not None else {}
     logbook.record(gen=gen, nevals=invalid_count, **record)
 
+def gene_bad(offspring):
+    gene_bad = False
+    for o in offspring:
+        for gene in o:
+            if math.isnan(gene):
+                gene_bad = True
+    return gene_bad
 
 def _get_offspring(parents, toolbox, cxpb, mutpb):
     '''return the offsprint, use toolbox.variate if possible'''
     if hasattr(toolbox, 'variate'):
-        return toolbox.variate(parents, toolbox, cxpb, mutpb)
-    return deap.algorithms.varAnd(parents, toolbox, cxpb, mutpb)
+        offspring = toolbox.variate(parents, toolbox, cxpb, mutpb)
+        while gene_bad(offspring) == True:
+            offspring = deap.algorithms.varAnd(parents, toolbox, cxpb, mutpb)
+    return offspring
 
 
 def _get_elite(halloffame, nelite):
@@ -141,6 +149,9 @@ def eaAlphaMuPlusLambdaCheckpoint(
     # Begin the generational process
     for gen in range(start_gen + 1, ngen + 1):
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
+
+
+        assert len(offspring)>0
         population = parents + offspring
         gen_vs_pop.append(population)
 
@@ -164,15 +175,6 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
 
         logger.info(logbook.stream)
-        '''
-        with open('pre_grid_reports.p','rb') as f:
-            [grid_results,nparams] = pickle.load(f)
-        from neuronunit.optimization import results_analysis as ra
-        new_report = ra.make_report(grid_results,copy.copy(population), nparams, pop = copy.copy(population))
-        if new_report[nparams]['better'] == True:
-            print('terminating condition')
-            break
-        '''
 
         if(cp_filename):# and cp_frequency and
            #gen % cp_frequency == 0):
@@ -187,9 +189,11 @@ def eaAlphaMuPlusLambdaCheckpoint(
             print('Wrote checkpoint to %s', cp_filename)
             logger.debug('Wrote checkpoint to %s', cp_filename)
 
+        unique_values = [ p.dtc.attrs.values() for p in population ]
+        print(unique_values,'what the hell genes')
+        assert len(unique_values) == len(set(unique_values))
 
-        print(len(gen_vs_pop), gen-1)
-        print(set(gen_vs_pop[-1][0].dtc.attrs.values()) in set(population[0].dtc.attrs.values()))
-        print(gen_vs_pop)
+        #print(set(gen_vs_pop[-1][0].dtc.attrs.values()) in set(population[0].dtc.attrs.values()))
+
 
     return population, halloffame, pf, logbook, history, gen_vs_pop
