@@ -153,35 +153,36 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         #assert len(self.params.items()) == 3
         #assert len(self.pop.dtc.attrs.items()) == 3
 
-    def transdict(dictionaries):
+    def transdict(self,dictionaries):
         from collections import OrderedDict
         mps = OrderedDict()
         sk = sorted(list(dictionaries.keys()))
         for k in sk:
             mps[k] = dictionaries[k]
-        return mps
-
+        tl = [ k for k in mps.keys() ]
+        return mps, tl
+    '''
     def get_trans_list(self,param_dict):
         from collections import OrderedDict
         mps = OrderedDict()
         sk = list(sorted(list(param_dict.keys())))
         trans_list = []
-        for i,k in enumerate(sk):
+        for k in sk:
             mps[k] = param_dict[k]
             trans_list.append(k)
         return trans_list, mps
-
+    '''
         #return list(mps.keys())
-        '''
-        trans_list = []
-        for i,k in enumerate(list(param_dict.keys())):
-            trans_list.append(k)
-        return trans_list
-        '''
+    '''
+    trans_list = []
+    for i,k in enumerate(list(param_dict.keys())):
+        trans_list.append(k)
+    return trans_list
+    '''
     def setnparams(self, nparams = 10, provided_dict = None):
         self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
         self.nparams = len(self.params)
-        self.td, mps = self.get_trans_list(self.params)
+        not_list , self.td = self.transdict(self.params)
         return self.params, self.td
 
 
@@ -224,6 +225,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         # Number of parameters
         # Bounds for the parameters
         IND_SIZE = len(list(self.params.values()))
+
         OBJ_SIZE = len(self.error_criterion)
         LOWER = [ np.min(self.params[v]) for v in self.td ]
         UPPER = [ np.max(self.params[v]) for v in self.td ]
