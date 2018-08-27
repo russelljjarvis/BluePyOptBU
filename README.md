@@ -48,6 +48,8 @@ We are providing support using a chat channel on [Gitter](https://gitter.im/Blue
 
 News
 ====
+- 2017/01/04: BluePyOpt is now considered compatible with Python 3.6+.
+- 2016/11/10: BluePyOpt now supports NEURON point processes. This means we can fit parameters of Adex/GIF/Izhikevich models, and also synapse models.
 - 2016/06/14: Started a wiki: https://github.com/BlueBrain/BluePyOpt/wiki
 - 2016/06/07: The BluePyOpt paper was published in Frontiers in Neuroinformatics (for link, see above)
 - 2016/05/03: The API documentation was moved to [ReadTheDocs](http://bluepyopt.readthedocs.io/en/latest/)
@@ -57,7 +59,7 @@ News
 Requirements
 ============
 
-* [Python 2.7+](https://www.python.org/download/releases/2.7/)
+* [Python 2.7+](https://www.python.org/download/releases/2.7/) or [Python 3.6+](https://www.python.org/downloads/release/python-360/)
 * [Pip](https://pip.pypa.io) (installed by default in newer versions of Python)
 * [Neuron 7.4](http://neuron.yale.edu/) (compiled with Python support)
 * [eFEL eFeature Extraction Library](https://github.com/BlueBrain/eFEL) (automatically installed by pip)

@@ -135,7 +135,6 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         super(DEAPOptimisation, self).__init__()
         self.selection = selection
         self.benchmark = benchmark
-        self.setnparams(nparams = nparams, provided_dict = provided_dict)
 
         self.error_criterion = error_criterion
         self.seed = seed
@@ -149,39 +148,41 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.toolbox = deap.base.Toolbox()
         self.setnparams(nparams = nparams, provided_dict = provided_dict)
         self.setup_deap()
-
         #assert len(self.params.items()) == 3
         #assert len(self.pop.dtc.attrs.items()) == 3
 
-    def transdict(dictionaries):
+    def transdict(self,dictionaries):
         from collections import OrderedDict
         mps = OrderedDict()
         sk = sorted(list(dictionaries.keys()))
         for k in sk:
             mps[k] = dictionaries[k]
-        return mps
-
+        tl = [ k for k in mps.keys() ]
+        return mps, tl
+    '''
     def get_trans_list(self,param_dict):
         from collections import OrderedDict
         mps = OrderedDict()
         sk = list(sorted(list(param_dict.keys())))
         trans_list = []
-        for i,k in enumerate(sk):
+        for k in sk:
             mps[k] = param_dict[k]
             trans_list.append(k)
         return trans_list, mps
-
+    '''
         #return list(mps.keys())
-        '''
-        trans_list = []
-        for i,k in enumerate(list(param_dict.keys())):
-            trans_list.append(k)
-        return trans_list
-        '''
+    '''
+    trans_list = []
+    for i,k in enumerate(list(param_dict.keys())):
+        trans_list.append(k)
+    return trans_list
+    '''
     def setnparams(self, nparams = 10, provided_dict = None):
         self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
         self.nparams = len(self.params)
-        self.td, mps = self.get_trans_list(self.params)
+        not_list , self.td = self.transdict(self.params)
+        import pdb; pdb.set_trace()
+
         return self.params, self.td
 
 
@@ -198,7 +199,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         npoints = np.ceil(npoints)
         nparams = len(self.params)
         provided_keys = list(self.params.keys())
-        dic_grid, _ = es.create_grid(npoints = npoints,nparams=nparams,provided_keys=provided_keys)
+        dic_grid, _ = es.create_grid(npoints = npoints, provided_keys = self.params)
         delta = int(np.abs(len(dic_grid) - (npoints ** len(list(self.params)))))
         pop = []
 
@@ -229,6 +230,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         # Number of parameters
         # Bounds for the parameters
         IND_SIZE = len(list(self.params.values()))
+
         OBJ_SIZE = len(self.error_criterion)
         LOWER = [ np.min(self.params[v]) for v in self.td ]
         UPPER = [ np.max(self.params[v]) for v in self.td ]
@@ -241,13 +243,16 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
 
 
+
+
+        # else:
+        #    self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
         #if IND_SIZE == 1 :
-        #    v = self.td[0]
-        #    self.grid_init = np.linspace(np.min(self.params[v])*(1.0/4.0) ,np.max(self.params[v])*(3.0/4.0) ,self.offspring_size)
+        #   v = self.td[0]
+        #   self.grid_init = np.linspace(np.min(self.params[v])*(1.0/4.0) ,np.max(self.params[v])*(3.0/4.0) ,self.offspring_size)
+        #else:
 
-
-        else:
-            self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
+        self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
 
 
         def uniform_params(lower_list, upper_list, dimensions):
@@ -278,6 +283,10 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Register the evaluation function for the individuals
         def custom_code(invalid_ind):
+
+            for p in invalid_ind:
+                for gene in p:
+                    gene = np.log(gene)
             if self.backend is None:
                 invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
             else:
@@ -285,9 +294,6 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             assert len(invalid_pop) != 0
             invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
             fitnesses = list(map(evaluate, invalid_dtc))
-            #fitnesses = list(filter(lambda t: str('RheobaseTestP') not in str(t), invalid_pop))
-            #tests = list(filter(lambda t: str('RheobaseTestP') not in str(t), tests))
-
             return (invalid_pop,fitnesses)
 
         self.toolbox.register("evaluate", custom_code)

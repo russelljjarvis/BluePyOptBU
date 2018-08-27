@@ -159,11 +159,10 @@ def eaAlphaMuPlusLambdaCheckpoint(
         halloffame, pf = _update_history_and_hof(halloffame,pf, history, population, td)
         _record_stats(stats, logbook, gen, population, invalid_count)
         set_ = False
-        #toolbox.register("select", tools.selIBEA)
-
 
         if str('selIBEA') == selection:
-            set_ = False
+            toolbox.register("select",tools.selIBEA)
+            set_ = True
         if str('selNSGA') == selection:
             toolbox.register("select",selNSGA2)
             set_ = True
