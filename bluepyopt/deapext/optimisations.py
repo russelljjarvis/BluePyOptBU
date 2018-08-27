@@ -135,7 +135,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         super(DEAPOptimisation, self).__init__()
         self.selection = selection
         self.benchmark = benchmark
-        self.setnparams(nparams = nparams, provided_dict = provided_dict)
+        #self.setnparams(nparams = nparams, provided_dict = provided_dict)
 
         self.error_criterion = error_criterion
         self.seed = seed
@@ -149,7 +149,6 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.toolbox = deap.base.Toolbox()
         self.setnparams(nparams = nparams, provided_dict = provided_dict)
         self.setup_deap()
-
         #assert len(self.params.items()) == 3
         #assert len(self.pop.dtc.attrs.items()) == 3
 
@@ -183,6 +182,8 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
         self.nparams = len(self.params)
         not_list , self.td = self.transdict(self.params)
+        import pdb; pdb.set_trace()
+
         return self.params, self.td
 
 
@@ -197,7 +198,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         from neuronunit.optimization import exhaustive_search as es
         npoints = self.offspring_size ** (1.0/len(list(self.params)))
         npoints = np.ceil(npoints)
-        dic_grid, _ = es.create_grid(npoints = npoints,nparams=len(list(self.params)))#,provided_keys=None)
+        dic_grid, _ = es.create_grid(npoints = npoints, provided_keys = self.params)#,provided_keys=None)
         delta = int(np.abs(len(dic_grid) - (npoints ** len(list(self.params)))))
         pop = []
         for dg in dic_grid:
@@ -236,15 +237,11 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                     LOWER[index]-=2.0
                     i+=2.0
 
-
-
-        if IND_SIZE == 1 :
-            v = self.td[0]
-            self.grid_init = np.linspace(np.min(self.params[v])*(1.0/4.0) ,np.max(self.params[v])*(3.0/4.0) ,self.offspring_size)
-
-
-        else:
-            self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
+        #if IND_SIZE == 1 :
+        #   v = self.td[0]
+        #   self.grid_init = np.linspace(np.min(self.params[v])*(1.0/4.0) ,np.max(self.params[v])*(3.0/4.0) ,self.offspring_size)
+        #else:
+        self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
 
 
         def uniform_params(lower_list, upper_list, dimensions):
@@ -275,6 +272,10 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Register the evaluation function for the individuals
         def custom_code(invalid_ind):
+
+            for p in invalid_ind:
+                for gene in p:
+                    gene = np.log(gene)
             if self.backend is None:
                 invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
             else:
@@ -282,9 +283,6 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             assert len(invalid_pop) != 0
             invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
             fitnesses = list(map(evaluate, invalid_dtc))
-            #fitnesses = list(filter(lambda t: str('RheobaseTestP') not in str(t), invalid_pop))
-            #tests = list(filter(lambda t: str('RheobaseTestP') not in str(t), tests))
-
             return (invalid_pop,fitnesses)
 
         self.toolbox.register("evaluate", custom_code)
