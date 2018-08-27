@@ -196,12 +196,17 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         from neuronunit.optimization import exhaustive_search as es
         npoints = self.offspring_size ** (1.0/len(list(self.params)))
         npoints = np.ceil(npoints)
-        dic_grid, _ = es.create_grid(npoints = npoints,nparams=len(list(self.params)))#,provided_keys=None)
+        nparams = len(self.params)
+        provided_keys = list(self.params.keys())
+        dic_grid, _ = es.create_grid(npoints = npoints,nparams=nparams,provided_keys=provided_keys)
         delta = int(np.abs(len(dic_grid) - (npoints ** len(list(self.params)))))
         pop = []
+
+
         for dg in dic_grid:
             temp = list(dg.values())
             pop.append(temp)
+            
         for d in range(0,delta):
             impute = []
             for i in range(0,len(pop[0])):
@@ -236,9 +241,9 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
 
 
-        if IND_SIZE == 1 :
-            v = self.td[0]
-            self.grid_init = np.linspace(np.min(self.params[v])*(1.0/4.0) ,np.max(self.params[v])*(3.0/4.0) ,self.offspring_size)
+        #if IND_SIZE == 1 :
+        #    v = self.td[0]
+        #    self.grid_init = np.linspace(np.min(self.params[v])*(1.0/4.0) ,np.max(self.params[v])*(3.0/4.0) ,self.offspring_size)
 
 
         else:
