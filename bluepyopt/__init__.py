@@ -33,7 +33,7 @@ import bluepyopt.deapext.optimisations
 # deapext yet
 # TODO deprecate this
 bluepyopt.optimisations.DEAPOptimisation = \
-    bluepyopt.deapext.optimisations.DEAPOptimisation
+    bluepyopt.deapext.optimisations.SciUnitOptimization
 
 import bluepyopt.evaluators
 import bluepyopt.objectives

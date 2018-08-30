@@ -114,7 +114,7 @@ class WSFloatIndividual(float):
     def set_fitness(self,obj_size):
         self.fitness = WeightedSumFitness(obj_size=obj_size)
 
-class SciUnitOptimization(DEAPOptimisation):
+class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
     
     """DEAP Optimisation class"""
     def __init__(self, error_criterion = None, evaluator = None,
@@ -132,7 +132,7 @@ class SciUnitOptimization(DEAPOptimisation):
                  provided_dict= {}):
         """Constructor"""
 
-        super(DEAPOptimisation, self).__init__()
+        super(SciUnitOptimization, self).__init__()
         self.selection = selection
         self.benchmark = benchmark
 
