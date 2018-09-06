@@ -151,8 +151,6 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         if self.benchmark == True:
             self.toolbox.register("evaluate", benchmarks.zdt1)
         else:
-            #from neuronunit.optimization.optimization_management import OptMan
-            #optimization_management = OptMan()
             from neuronunit.optimization import optimization_management
             self.toolbox.register("evaluate", optimization_management.evaluate)
 
@@ -216,17 +214,12 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # Register the evaluation function for the individuals
         def custom_code(invalid_ind):
-            from neuronunit.optimization.optimization_management import evaluate, map_wrapper, update_deap_pop
-
-            #from neuronunit.optimization.optimization_management.OptMan import evaluate, map_wrapper, update_deap_pop
-            #optimization_management = OptMan()
-            #from neuronunit.optimization.optimization_management import evaluate, map_wrapper, update_deap_pop
+            from neuronunit.optimization.optimization_management import evaluate, update_deap_pop
             if self.backend is not None:
                 return_package = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
             else:
                 return_package = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
             invalid_dtc = [i[0] for i in return_package ]
-            invalid_ind = [i[1] for i in return_package ]
             fitnesses = list(map(evaluate,invalid_dtc))
             return fitnesses
 
