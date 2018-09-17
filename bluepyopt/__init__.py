@@ -25,6 +25,8 @@ from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
+from . import tools  # NOQA
+
 from .api import *  # NOQA
 import bluepyopt.optimisations
 import bluepyopt.deapext.optimisations
@@ -32,9 +34,8 @@ import bluepyopt.deapext.optimisations
 # Add some backward compatibility for the time when DEAPoptimisation not in
 # deapext yet
 # TODO deprecate this
-bluepyopt.optimisations.DEAPOptimisation = \
-    bluepyopt.deapext.optimisations.DEAPOptimisation
-
+bluepyopt.optimisations.DEAPOptimisation = bluepyopt.deapext.optimisations.SciUnitOptimization
+#    from bluepyopt.deapext.optimisations import SciUnitOptimization
 import bluepyopt.evaluators
 import bluepyopt.objectives
 import bluepyopt.parameters  # NOQA
