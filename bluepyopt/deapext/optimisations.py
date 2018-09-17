@@ -37,15 +37,15 @@ from . import tools
 
 import bluepyopt.optimisations
 import numpy
-
+from numba import jit
 logger = logging.getLogger('__main__')
 
 # TODO decide which variables go in constructor, which ones go in 'run' function
 # TODO abstract the algorithm by creating a class for every algorithm, that way
 # settings of the algorithm can be stored in objects of these classes
 
-from neuronunit.optimization.optimization_management import evaluate, update_deap_pop
-from neuronunit.optimization import optimization_management
+#from neuronunit.optimization.optimization_management import evaluate#, update_deap_pop
+
 import numpy as np
 
 class WeightedSumFitness(deap.base.Fitness):
@@ -114,7 +114,9 @@ class WSFloatIndividual(float):
     def set_fitness(self,obj_size):
         self.fitness = WeightedSumFitness(obj_size=obj_size)
 
-class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
+
+import bluepyopt.optimisations
+class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
 
     """DEAP Optimisation class"""
     def __init__(self, error_criterion = None, evaluator = None,
@@ -129,10 +131,10 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                  map_function=None,
                  backend=None,
                  nparams = 10,
-                 provided_dict= {}):
+                 boundary_dict= {}):
         """Constructor"""
 
-        super(DEAPOptimisation, self).__init__()
+        super(SciUnitOptimization, self).__init__()
         self.selection = selection
         self.benchmark = benchmark
 
@@ -146,10 +148,8 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.backend = backend
         # Create a DEAP toolbox
         self.toolbox = deap.base.Toolbox()
-        self.setnparams(nparams = nparams, provided_dict = provided_dict)
+        self.setnparams(nparams = nparams, boundary_dict = boundary_dict)
         self.setup_deap()
-        #assert len(self.params.items()) == 3
-        #assert len(self.pop.dtc.attrs.items()) == 3
 
     def transdict(self,dictionaries):
         from collections import OrderedDict
@@ -159,30 +159,10 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             mps[k] = dictionaries[k]
         tl = [ k for k in mps.keys() ]
         return mps, tl
-    '''
-    def get_trans_list(self,param_dict):
-        from collections import OrderedDict
-        mps = OrderedDict()
-        sk = list(sorted(list(param_dict.keys())))
-        trans_list = []
-        for k in sk:
-            mps[k] = param_dict[k]
-            trans_list.append(k)
-        return trans_list, mps
-    '''
-        #return list(mps.keys())
-    '''
-    trans_list = []
-    for i,k in enumerate(list(param_dict.keys())):
-        trans_list.append(k)
-    return trans_list
-    '''
-    def setnparams(self, nparams = 10, provided_dict = None):
-        self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
-        self.nparams = len(self.params)
-        not_list , self.td = self.transdict(self.params)
-        import pdb; pdb.set_trace()
 
+    def setnparams(self, nparams = 10, boundary_dict = None):
+        self.params = optimization_management.create_subset(nparams = nparams,boundary_dict = boundary_dict)
+        self.params, self.td = self.transdict(self.params)
         return self.params, self.td
 
 
@@ -194,28 +174,20 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
 
     def grid_sample_init(self, nparams):
+        # the number of points, should be 2**n, where n is the number of dimensions
         from neuronunit.optimization import exhaustive_search as es
-        npoints = self.offspring_size ** (1.0/len(list(self.params)))
+        npoints = 2 ** len(list(self.params))
         npoints = np.ceil(npoints)
-        nparams = len(self.params)
-        provided_keys = list(self.params.keys())
-        dic_grid, _ = es.create_grid(npoints = npoints, provided_keys = self.params)
-        delta = int(np.abs(len(dic_grid) - (npoints ** len(list(self.params)))))
-        pop = []
-
-
-        for dg in dic_grid:
-            temp = list(dg.values())
-            pop.append(temp)
-            
-        for d in range(0,delta):
-            impute = []
-            for i in range(0,len(pop[0])):
-                impute.append(np.mean([ p[i] for p in pop ]))
-            pop.append(impute)
-        print(len(pop),npoints ** len(list(self.params)))
-        assert len(pop) == int(npoints ** len(list(self.params)))
+        dic_grid = es.create_grid(npoints = npoints, free_params = self.params)
+        pop = [ list(dg.values()) for dg in dic_grid ]
         return pop
+
+    def glif_modifications(UPPER,LOWER):
+        for index, i in enumerate(UPPER):
+            if i == LOWER[index]:
+                LOWER[index]-=2.0
+                i+=2.0
+        return LOWER
 
     def setup_deap(self):
         """Set up optimisation"""
@@ -234,27 +206,11 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         OBJ_SIZE = len(self.error_criterion)
         LOWER = [ np.min(self.params[v]) for v in self.td ]
         UPPER = [ np.max(self.params[v]) for v in self.td ]
-
         if self.backend == 'glif':
-            for index, i in enumerate(UPPER):
-                if i == LOWER[index]:
-                    LOWER[index]-=2.0
-                    i+=2.0
+            LOWER = glif_modifications(UPPER,LOWER)
 
-
-
-
-
-        # else:
-        #    self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
-        #if IND_SIZE == 1 :
-        #   v = self.td[0]
-        #   self.grid_init = np.linspace(np.min(self.params[v])*(1.0/4.0) ,np.max(self.params[v])*(3.0/4.0) ,self.offspring_size)
-        #else:
-
+        # in other words the population
         self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
-
-
         def uniform_params(lower_list, upper_list, dimensions):
             if hasattr(lower_list, '__iter__'):
                 other = [random.uniform(lower, upper) for lower, upper in zip(lower_list, upper_list)]
@@ -280,20 +236,17 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             list,
             self.toolbox.Individual)
 
-
+        import neuronunit.optimization.optimization_management as om
         # Register the evaluation function for the individuals
         def custom_code(invalid_ind):
 
-            for p in invalid_ind:
-                for gene in p:
-                    gene = np.log(gene)
             if self.backend is None:
-                invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
+                invalid_pop = list(om.update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
             else:
-                invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
+                invalid_pop = list(om.update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
             assert len(invalid_pop) != 0
             invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
-            fitnesses = list(map(evaluate, invalid_dtc))
+            fitnesses = list(map(om.evaluate, invalid_dtc))
             return (invalid_pop,fitnesses)
 
         self.toolbox.register("evaluate", custom_code)
@@ -317,8 +270,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         # Register the variate operator
         self.toolbox.register("variate", deap.algorithms.varAnd)
 
-        #self.toolbox.register("select", tools.selIBEA)
-
+    #@jit
     def set_pop(self):
         IND_SIZE = len(list(self.params.values()))
         OBJ_SIZE = len(self.error_criterion)
@@ -333,7 +285,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             offspring_size=None,
             continue_cp=False,
             cp_filename=None,
-            cp_frequency=0):
+            cp_frequency=2):
         """Run optimisation"""
         # Allow run function to override offspring_size
         # TODO probably in the future this should not be an object field anymore
@@ -370,68 +322,11 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
         # insert the initial HOF value back in.
         td = self.td
-        return pop, hof, pf, log, history, td, gen_vs_pop
-
-
-class IBEADEAPOptimisation(DEAPOptimisation):
-
-    """IBEA DEAP class"""
-
-    def __init__(self, *args, **kwargs):
-        """Constructor"""
-
-        super(IBEADEAPOptimisation, self).__init__(*args, **kwargs)
-'''
-class SciUnitOptimization(DEAPOptimisation):
-
-    def __init__(self, *args, **kwargs):
-        super(SciUnitOptimization, self).__init__(self,**kwargs)
-        self.selection = selection
-        self.benchmark = benchmark
-        self.setnparams(nparams = nparams, provided_dict = provided_dict)
-
-
-        error_criterion = None,
-        evaluator = None,
-        selection = 'selIBEA',
-        benchmark = False,
-        seed=1,
-        offspring_size=15,
-        elite_size=0,
-        eta=10,
-        mutpb=1.0,
-        cxpb=1.0,
-        map_function=None,
-        backend=None,
-        nparams = 10,
-        provided_dict= {}
-
-    def get_trans_list(self,param_dict):
-        trans_list = []
-        for i,k in enumerate(list(param_dict.keys())):
-            trans_list.append(k)
-        return trans_list
-
-    def setnparams(self, nparams = 10, provided_dict = None):
-        self.params = optimization_management.create_subset(nparams = nparams,provided_dict = provided_dict)
-        self.nparams = len(self.params)
-        self.td = self.get_trans_list(self.params)
-        return self.params, self.td
-
-    def set_evaluate(self):
-        if self.benchmark == True:
-            self.toolbox.register("evaluate", benchmarks.zdt1)
-        else:
-            self.toolbox.register("evaluate", optimization_management.evaluate)
-
-    def custom_code(invalid_ind):
-        if self.backend is None:
-            invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
-        else:
-            invalid_pop = list(update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
-        assert len(invalid_pop) != 0
-        invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
-
-        fitnesses = list(map(evaluate, invalid_dtc))
-        return fitnesses
-'''
+        attr_keys = list(hof[0].dtc.attrs.keys())
+        us = {} # GA utilized_space
+        for key in attr_keys:
+            temp = [ v.dtc.attrs[key] for k,v in history.genealogy_history.items() ]
+            us[key] = ( np.min(temp), np.max(temp))
+            self.us = us
+        self.results = {'pop':pop,'hof':hof,'pf':pf,'log':log,'history':history,'td':td,'gen_vs_pop':gen_vs_pop}
+        return self.results

@@ -152,12 +152,15 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
 
         assert len(offspring)>0
-        population = parents + offspring
-        gen_vs_pop.append(population)
+        #
+        gen_vs_pop.append(offspring)
 
-        invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
-        halloffame, pf = _update_history_and_hof(halloffame,pf, history, population, td)
-        _record_stats(stats, logbook, gen, population, invalid_count)
+        invalid_ind = _evaluate_invalid_fitness(toolbox, offspring)
+        population = parents + invalid_ind
+        invalid_count = len(invalid_ind)
+
+        halloffame, pf = _update_history_and_hof(halloffame,pf, history, offspring, td)
+        _record_stats(stats, logbook, gen, offspring, invalid_count)
         set_ = False
 
         if str('selIBEA') == selection:
@@ -167,9 +170,14 @@ def eaAlphaMuPlusLambdaCheckpoint(
             toolbox.register("select",selNSGA2)
             set_ = True
         assert set_ == True
+        #nelite = int(np.ceil(len(population)/4.0))
+        #elite = _get_elite(halloffame, nelite)
+        #gen_vs_pop.append(copy.copy(population))
 
-        elite = _get_elite(halloffame, nelite)
-        gen_vs_pop.append(copy.copy(population))
+
+        #unique_values = [ p.dtc.attrs.values() for p in population ]
+        #if len(population) != len(set(unique_values)))
+
         parents = toolbox.select(population, mu)
 
 
@@ -187,10 +195,6 @@ def eaAlphaMuPlusLambdaCheckpoint(
             pickle.dump(cp, open(cp_filename, "wb"))
             print('Wrote checkpoint to %s', cp_filename)
             logger.debug('Wrote checkpoint to %s', cp_filename)
-
-        unique_values = [ p.dtc.attrs.values() for p in population ]
-        print(unique_values,'what the hell genes')
-        assert len(unique_values) == len(set(unique_values))
 
         #print(set(gen_vs_pop[-1][0].dtc.attrs.values()) in set(population[0].dtc.attrs.values()))
 
