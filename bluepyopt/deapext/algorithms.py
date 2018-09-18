@@ -196,6 +196,9 @@ def eaAlphaMuPlusLambdaCheckpoint(
             print('Wrote checkpoint to %s', cp_filename)
             logger.debug('Wrote checkpoint to %s', cp_filename)
 
+        unique_values = [ p.dtc.attrs.values() for p in population ]
+        #assert len(unique_values) == len(set(unique_values))
+
         #print(set(gen_vs_pop[-1][0].dtc.attrs.values()) in set(population[0].dtc.attrs.values()))
 
 

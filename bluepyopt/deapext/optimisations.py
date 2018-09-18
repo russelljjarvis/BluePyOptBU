@@ -329,4 +329,7 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
             us[key] = ( np.min(temp), np.max(temp))
             self.us = us
         self.results = {'pop':pop,'hof':hof,'pf':pf,'log':log,'history':history,'td':td,'gen_vs_pop':gen_vs_pop}
+        self.results['dhof'] = [ h.dtc for h in self.results['hof'] ]
+        self.results['bd'] = self.results['hof'][0].dtc
+
         return self.results
