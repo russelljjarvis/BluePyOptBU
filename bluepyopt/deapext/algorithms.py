@@ -118,7 +118,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
         continue_cp = False,
         selection = 'selNSGA2',
         td=None):
-    print(halloffame,pf)
+    #print(halloffame,pf)
     gen_vs_pop = []
 
     if continue_cp:
@@ -143,32 +143,29 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         # TODO this first loop should be not be repeated !
         invalid_ind = _evaluate_invalid_fitness(toolbox, population)
-        #print(len(invalid_ind[0]))
-        #import pdb; pdb.set_trace()
+
         invalid_count = len(invalid_ind)
         gen_vs_hof = []
         halloffame, pf = _update_history_and_hof(halloffame, pf, history, population, td)
 
         gen_vs_hof.append(halloffame)
         _record_stats(stats, logbook, start_gen, population, invalid_count)
-    # Begin the generational process
+    # Begin the generational    process
     for gen in range(start_gen + 1, ngen + 1):
         ##
         # Not supposed to be here.
         # find a better way of containing genes.
         ##
         delta = len(parents[0]) - len(toolbox.Individual())
-        for i in parents:
-            for j in range(0,delta):
-                del i[j]
+        assert delta == 0
+        #for i in parents:
+        #    for j in range(0,delta):
+        #        del i[j]
 
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
 
-
         assert len(offspring)>0
-        #
         gen_vs_pop.append(offspring)
-        print('gets here ??? b ')
         invalid_ind = _evaluate_invalid_fitness(toolbox, offspring)
         population = parents + invalid_ind
         invalid_count = len(invalid_ind)
@@ -187,7 +184,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         #unique_values = [ p.dtc.attrs.values() for p in population ]
         #if len(population) != len(set(unique_values)))
-        #import pdb; pdb.set_trace()
+
         parents = toolbox.select(population, mu)
 
 
