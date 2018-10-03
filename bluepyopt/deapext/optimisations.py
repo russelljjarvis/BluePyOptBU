@@ -131,7 +131,8 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
                  map_function=None,
                  backend=None,
                  nparams = 10,
-                 boundary_dict= {}):
+                 boundary_dict= {},
+                 hc = None):
         """Constructor"""
 
         super(SciUnitOptimization, self).__init__()
@@ -148,6 +149,8 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
         self.backend = backend
         # Create a DEAP toolbox
         self.toolbox = deap.base.Toolbox()
+        self.hc = hc
+
         self.setnparams(nparams = nparams, boundary_dict = boundary_dict)
         self.setup_deap()
 
@@ -162,7 +165,7 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
 
     def setnparams(self, nparams = 10, boundary_dict = None):
         self.params = optimization_management.create_subset(nparams = nparams,boundary_dict = boundary_dict)
-        self.params, self.td = self.transdict(self.params)
+        self.params, self.td = self.transdict(boundary_dict)
         return self.params, self.td
 
 
@@ -176,10 +179,14 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
     def grid_sample_init(self, nparams):
         # the number of points, should be 2**n, where n is the number of dimensions
         from neuronunit.optimization import exhaustive_search as es
+        from neuronunit.optimization import optimization_management as om
+
         npoints = 2 ** len(list(self.params))
         npoints = np.ceil(npoints)
-        dic_grid = es.create_grid(npoints = npoints, free_params = self.params)
-        pop = [ list(dg.values()) for dg in dic_grid ]
+        dic_grid = es.create_grid(mp_in = self.params,npoints = npoints, free_params = self.params)
+        pop = []
+        for d in dic_grid:
+            pop.append([d[k] for k in self.td])
         return pop
 
     def glif_modifications(UPPER,LOWER):
@@ -211,6 +218,7 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
 
         # in other words the population
         self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
+
         def uniform_params(lower_list, upper_list, dimensions):
             if hasattr(lower_list, '__iter__'):
                 other = [random.uniform(lower, upper) for lower, upper in zip(lower_list, upper_list)]
@@ -220,7 +228,7 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
             return other
         # Register the 'uniform' function
         self.toolbox.register("uniform_params", uniform_params, LOWER, UPPER, IND_SIZE)
-
+        #import pdb; pdb.set_trace()
 
 
         self.toolbox.register(
@@ -241,10 +249,10 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
         def custom_code(invalid_ind):
 
             if self.backend is None:
-                invalid_pop = list(om.update_deap_pop(invalid_ind, self.error_criterion, td = self.td))
-            else:
-                invalid_pop = list(om.update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
-            assert len(invalid_pop) != 0
+                self.backend = 'RAW'
+            #print(invalid_ind[0],self.td)
+            invalid_pop = list(om.update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
+
             invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
             fitnesses = list(map(om.evaluate, invalid_dtc))
             return (invalid_pop,fitnesses)

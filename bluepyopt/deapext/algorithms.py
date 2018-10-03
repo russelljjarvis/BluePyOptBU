@@ -43,10 +43,12 @@ def _evaluate_invalid_fitness(toolbox, population):
 
     Returns the count of individuals with invalid fitness
     '''
+    #print(population)
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
     invalid_pop,fitnesses = toolbox.evaluate(invalid_ind)
     for ind, fit in zip(invalid_pop,fitnesses):
         ind.fitness.values = fit
+    print('gets here??????')
     return invalid_pop
 
 
@@ -133,6 +135,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
         # Start a new evolution
         start_gen = 1
         parents = population[:]
+
         gen_vs_pop.append(population)
         logbook = deap.tools.Logbook()
         logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
@@ -140,6 +143,8 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         # TODO this first loop should be not be repeated !
         invalid_ind = _evaluate_invalid_fitness(toolbox, population)
+        #print(len(invalid_ind[0]))
+        #import pdb; pdb.set_trace()
         invalid_count = len(invalid_ind)
         gen_vs_hof = []
         halloffame, pf = _update_history_and_hof(halloffame, pf, history, population, td)
@@ -148,13 +153,22 @@ def eaAlphaMuPlusLambdaCheckpoint(
         _record_stats(stats, logbook, start_gen, population, invalid_count)
     # Begin the generational process
     for gen in range(start_gen + 1, ngen + 1):
+        ##
+        # Not supposed to be here.
+        # find a better way of containing genes.
+        ##
+        delta = len(parents[0]) - len(toolbox.Individual())
+        for i in parents:
+            for j in range(0,delta):
+                del i[j]
+
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
 
 
         assert len(offspring)>0
         #
         gen_vs_pop.append(offspring)
-
+        print('gets here ??? b ')
         invalid_ind = _evaluate_invalid_fitness(toolbox, offspring)
         population = parents + invalid_ind
         invalid_count = len(invalid_ind)
@@ -170,14 +184,10 @@ def eaAlphaMuPlusLambdaCheckpoint(
             toolbox.register("select",selNSGA2)
             set_ = True
         assert set_ == True
-        #nelite = int(np.ceil(len(population)/4.0))
-        #elite = _get_elite(halloffame, nelite)
-        #gen_vs_pop.append(copy.copy(population))
-
 
         #unique_values = [ p.dtc.attrs.values() for p in population ]
         #if len(population) != len(set(unique_values)))
-
+        #import pdb; pdb.set_trace()
         parents = toolbox.select(population, mu)
 
 
@@ -195,6 +205,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
             pickle.dump(cp, open(cp_filename, "wb"))
             print('Wrote checkpoint to %s', cp_filename)
             logger.debug('Wrote checkpoint to %s', cp_filename)
+        print('gets here ??? c ')
 
         unique_values = [ p.dtc.attrs.values() for p in population ]
         #assert len(unique_values) == len(set(unique_values))
