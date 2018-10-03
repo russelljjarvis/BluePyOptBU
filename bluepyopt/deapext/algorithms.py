@@ -171,16 +171,18 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         halloffame, pf = _update_history_and_hof(halloffame,pf, history, offspring, td)
         _record_stats(stats, logbook, gen, offspring, invalid_count)
-        set_ = False
+        '''
 
+        set_ = False
         if str('selIBEA') == selection:
-            toolbox.register("select",tools.selIBEA)
+
             set_ = True
         if str('selNSGA') == selection:
             toolbox.register("select",selNSGA2)
             set_ = True
         assert set_ == True
-
+        '''
+        toolbox.register("select",tools.selIBEA)
         #unique_values = [ p.dtc.attrs.values() for p in population ]
         #if len(population) != len(set(unique_values)))
         #import pdb; pdb.set_trace()
