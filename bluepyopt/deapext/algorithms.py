@@ -48,7 +48,6 @@ def _evaluate_invalid_fitness(toolbox, population):
     invalid_pop,fitnesses = toolbox.evaluate(invalid_ind)
     for ind, fit in zip(invalid_pop,fitnesses):
         ind.fitness.values = fit
-    print('gets here??????')
     return invalid_pop
 
 
@@ -184,7 +183,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         #unique_values = [ p.dtc.attrs.values() for p in population ]
         #if len(population) != len(set(unique_values)))
-
+        #import pdb; pdb.set_trace()
         parents = toolbox.select(population, mu)
 
 
@@ -202,7 +201,6 @@ def eaAlphaMuPlusLambdaCheckpoint(
             pickle.dump(cp, open(cp_filename, "wb"))
             print('Wrote checkpoint to %s', cp_filename)
             logger.debug('Wrote checkpoint to %s', cp_filename)
-        print('gets here ??? c ')
 
         unique_values = [ p.dtc.attrs.values() for p in population ]
         #assert len(unique_values) == len(set(unique_values))
