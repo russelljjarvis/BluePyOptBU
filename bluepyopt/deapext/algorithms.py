@@ -63,7 +63,8 @@ def _update_history_and_hof(halloffame,pf, history, population,td):
         try:
             pf.update(population)
         except:
-            #print(population)
+            pass
+            print("Could not update this population", population)
     history.update(population)
 
     return (halloffame,pf)
