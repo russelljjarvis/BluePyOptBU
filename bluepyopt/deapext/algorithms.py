@@ -63,7 +63,8 @@ def _update_history_and_hof(halloffame,pf, history, population,td):
         try:
             pf.update(population)
         except:
-            pass
+            print(pf,type(pf))
+            #pass
             print("Could not update this population", population)
     history.update(population)
 
@@ -172,18 +173,23 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         halloffame, pf = _update_history_and_hof(halloffame,pf, history, offspring, td)
         _record_stats(stats, logbook, gen, offspring, invalid_count)
-        '''
+
 
         set_ = False
         if str('selIBEA') == selection:
-
+            toolbox.register("select",tools.selIBEA)
             set_ = True
         if str('selNSGA') == selection:
             toolbox.register("select",selNSGA2)
+            #
+            # make sure that the gene population size is divisible by 4.
+            if mu % 4 !=0:
+
+                mu = mu + int(mu%4)
+                assert mu % 4 == 0
             set_ = True
         assert set_ == True
-        '''
-        toolbox.register("select",tools.selIBEA)
+
         #unique_values = [ p.dtc.attrs.values() for p in population ]
         #if len(population) != len(set(unique_values)))
         #import pdb; pdb.set_trace()
