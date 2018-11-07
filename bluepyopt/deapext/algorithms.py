@@ -63,9 +63,10 @@ def _update_history_and_hof(halloffame,pf, history, population,td):
         try:
             pf.update(population)
         except:
-            print(pf,type(pf))
+            pass
+            #print(pf,type(pf))
             #pass
-            print("Could not update this population", population)
+            #print("Could not update this population", population)
     history.update(population)
 
     return (halloffame,pf)
@@ -153,17 +154,11 @@ def eaAlphaMuPlusLambdaCheckpoint(
         _record_stats(stats, logbook, start_gen, population, invalid_count)
     # Begin the generational    process
     for gen in range(start_gen + 1, ngen + 1):
-        ##
-        # Not supposed to be here.
-        # find a better way of containing genes.
-        ##
+
         delta = len(parents[0]) - len(toolbox.Individual())
         assert delta == 0
-        #for i in parents:
-        #    for j in range(0,delta):
-        #        del i[j]
-
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
+        #offspring = [ toolbox.clone(ind) for ind in offspring ]
 
         assert len(offspring)>0
         gen_vs_pop.append(offspring)
@@ -175,26 +170,47 @@ def eaAlphaMuPlusLambdaCheckpoint(
         _record_stats(stats, logbook, gen, offspring, invalid_count)
 
 
-        set_ = False
+        # Select the next generation population
+        #pop = toolbox.select(pop + offspring, MU)
+
+        #set_ = False
         if str('selIBEA') == selection:
             toolbox.register("select",tools.selIBEA)
-            set_ = True
+            #set_ = selection
         if str('selNSGA') == selection:
             toolbox.register("select",selNSGA2)
             #
             # make sure that the gene population size is divisible by 4.
-            if mu % 4 !=0:
-
-                mu = mu + int(mu%4)
-                assert mu % 4 == 0
-            set_ = True
-        assert set_ == True
+            #if mu % 8 !=0:
+            #        mu = mu + int(mu%4)
+            #assert mu % 8 == 0
+            #set_ = selection
+        assert len(selection) > 1
+        '''
 
         #unique_values = [ p.dtc.attrs.values() for p in population ]
-        #if len(population) != len(set(unique_values)))
-        #import pdb; pdb.set_trace()
+        before = len(population)
+        if str('selIBEA') != selection:
+            population = [ind for ind in population if len(ind.fitness.values) != 0]
+            after = len(population)
+            delta = before-after
+            orphans =  [ ind for ind in population if not hasattr(ind,'dtc') ]
+            #dtcpop = list(update_dtc_pop(orphans, td))
+
+            if delta > 0:
+                for i in range(0,delta):
+                    population.append(copy.copy(population[i]))
+                for i in range(0,delta):
+                    index = before-i
+                    population[index].dtc = population[i].dtc
+        '''
+
+        #unique_values = [ p.dtc.attrs.values() for p in population ]
+        #map_dtc = { tuple(p.dtc.attrs.values()):p.dtc for p in population}
         parents = toolbox.select(population, mu)
 
+        #for p in enumerate(parents):
+        #    p.dtc = map_dtc[tuple(p)]
 
         logger.info(logbook.stream)
 
@@ -211,7 +227,6 @@ def eaAlphaMuPlusLambdaCheckpoint(
             print('Wrote checkpoint to %s', cp_filename)
             logger.debug('Wrote checkpoint to %s', cp_filename)
 
-        unique_values = [ p.dtc.attrs.values() for p in population ]
         #assert len(unique_values) == len(set(unique_values))
 
         #print(set(gen_vs_pop[-1][0].dtc.attrs.values()) in set(population[0].dtc.attrs.values()))

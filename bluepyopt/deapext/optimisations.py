@@ -23,7 +23,6 @@ Copyright (c) 2016, EPFL/Blue Brain Project
 from neuronunit.optimization import optimization_management
 
 import random
-import logging
 import functools
 import numpy
 
@@ -38,6 +37,9 @@ from . import tools
 import bluepyopt.optimisations
 import numpy
 from numba import jit
+import bluepyopt.optimisations
+
+import logging
 logger = logging.getLogger('__main__')
 
 # TODO decide which variables go in constructor, which ones go in 'run' function
@@ -115,7 +117,6 @@ class WSFloatIndividual(float):
         self.fitness = WeightedSumFitness(obj_size=obj_size)
 
 
-import bluepyopt.optimisations
 class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
 
     """DEAP Optimisation class"""
@@ -126,8 +127,8 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
                  offspring_size=15,
                  elite_size=3,
                  eta=10,
-                 mutpb=0.66,
-                 cxpb=0.66,
+                 mutpb=0.77,
+                 cxpb=0.77,
                  map_function=None,
                  backend=None,
                  nparams = 10,
@@ -250,9 +251,7 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
 
             if self.backend is None:
                 self.backend = 'RAW'
-            #print(invalid_ind[0],self.td)
             invalid_pop = list(om.update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
-
             invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
             fitnesses = list(map(om.evaluate, invalid_dtc))
             return (invalid_pop,fitnesses)
@@ -330,14 +329,56 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
 
         # insert the initial HOF value back in.
         td = self.td
-        attr_keys = list(hof[0].dtc.attrs.keys())
-        us = {} # GA utilized_space
-        for key in attr_keys:
-            temp = [ v.dtc.attrs[key] for k,v in history.genealogy_history.items() ]
-            us[key] = ( np.min(temp), np.max(temp))
-            self.us = us
-        self.results = {'pop':pop,'hof':hof,'pf':pf,'log':log,'history':history,'td':td,'gen_vs_pop':gen_vs_pop}
-        self.results['dhof'] = [ h.dtc for h in self.results['hof'] ]
-        self.results['bd'] = self.results['hof'][0].dtc
+
+
+        temp = [ v.dtc for k,v in history.genealogy_history.items() ]
+        temp = [ i for i in temp if type(i) is not type(None)]
+        temp = [ i for i in temp if len(list(i.attrs.values())) != 0.0 ]
+        true_history = [ (dtc, dtc.get_ss()) for dtc in temp ]
+        true_mins = sorted(true_history, key=lambda h: h[1])
+
+
+        #sorted(student_tuples, key=lambda student: student[2])
+        true_mins = sorted(true_history, key=lambda h: h[1])
+        hof = [ h for h in hof if len(h)==len(pop[0])]
+        hof = [ h for h in hof if type(h.dtc) is not type(None)]
+        pf = [ p for p in pf if len(p)==len(pop[0])]
+        pf = [ p for p in pf if type(p.dtc) is not type(None)]
+
+        if true_mins[0][1] <  hof[0].dtc.get_ss():
+            #print('hall of fame unreliable, compared to history')
+            hof = [i[0] for i in true_mins]
+            best = hof[0]
+            best_attrs = best.attrs
+
+        print('the true minima: ')
+        print(true_mins[0][1], hof[0].dtc.get_ss())
+
+        self.results = {'pop':pop,'hof':hof,'pf':pf,'log':log,'history':history,'td':td,'gen_vs_pop':gen_vs_pop,'hardened':true_mins}
+        try:
+            attr_keys = list(hof[0].dtc.attrs.keys())
+
+
+            us = {} # GA utilized_space
+            for key in attr_keys:
+                #temp = [ v.dtc for k,v in history.genealogy_history.items() ]
+                temp = [ i.attrs[key] for i in temp if type(i) is not type(None)]
+                #temp = [ v.dtc.attrs[key] for k,v in history.genealogy_history.items() ]
+                us[key] = ( np.min(temp), np.max(temp))
+                self.us = us
+        except:
+            attr_keys = list(pf[0].dtc.attrs.keys())
+            #pass
+
+        try:
+            self.results['dhof'] = [ h.dtc for h in self.results['hof'] ]
+            self.results['bd'] = self.results['hof'][0].dtc
+        except:
+            try:
+                self.results['bd'] = self.results['hof'][0].dtc
+                self.results['dpf'] = [ h.dtc for h in self.results['pf'] ]
+            except:
+                self.results['dhof'] = [ p.dtc for p in pop ]
+                self.results['bd'] = pop[0].dtc
 
         return self.results
