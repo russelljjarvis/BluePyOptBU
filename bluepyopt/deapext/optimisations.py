@@ -49,6 +49,8 @@ logger = logging.getLogger('__main__')
 #from neuronunit.optimization.optimization_management import evaluate#, update_deap_pop
 
 import numpy as np
+from collections import OrderedDict
+
 
 class WeightedSumFitness(deap.base.Fitness):
 
@@ -127,13 +129,15 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
                  offspring_size=15,
                  elite_size=3,
                  eta=10,
-                 mutpb=0.77,
-                 cxpb=0.77,
+                 mutpb=0.7,
+                 cxpb=0.7,
                  map_function=None,
                  backend=None,
                  nparams = 10,
                  boundary_dict= {},
-                 hc = None):
+                 hc = None,
+                 seed_pop = None):
+        self.seed_pop = seed_pop
         """Constructor"""
 
         super(SciUnitOptimization, self).__init__()
@@ -156,7 +160,6 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
         self.setup_deap()
 
     def transdict(self,dictionaries):
-        from collections import OrderedDict
         mps = OrderedDict()
         sk = sorted(list(dictionaries.keys()))
         for k in sk:
@@ -176,18 +179,30 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
         else:
             self.toolbox.register("evaluate", optimization_management.evaluate)
 
-
     def grid_sample_init(self, nparams):
-        # the number of points, should be 2**n, where n is the number of dimensions
+        '''
+        the number of points, should be 2**n, where n is the number of dimensions
+        but 2**n can be such a big number it's not even computationally tractible.
+        Therefore if 2**n is greater than offspring size, sparsify the grid initialization
+        and only use a sparse sampling of points.
+        1 -self.offsping size/len(dic_grid).
+        '''
         from neuronunit.optimization import exhaustive_search as es
         from neuronunit.optimization import optimization_management as om
-
         npoints = 2 ** len(list(self.params))
         npoints = np.ceil(npoints)
-        dic_grid = es.create_grid(mp_in = self.params,npoints = npoints, free_params = self.params)
-        pop = []
-        for d in dic_grid:
-            pop.append([d[k] for k in self.td])
+        dic_grid = es.create_grid(mp_in = self.params,npoints = self.offspring_size, free_params = self.params)
+        if npoints > self.offspring_size:
+            sparsify = np.linspace(0,len(dic_grid)-1,self.offspring_size)
+            pop = []
+            for i in sparsify:
+                d = dic_grid[int(i)]
+                pop.append([d[k] for k in self.td])
+        else:
+            pop = []
+            for i in dic_grid:
+                pop.append([i[k] for k in self.td])
+        assert len(pop)==self.offspring_size
         return pop
 
     def glif_modifications(UPPER,LOWER):
@@ -216,9 +231,13 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
         UPPER = [ np.max(self.params[v]) for v in self.td ]
         if self.backend == 'glif':
             LOWER = glif_modifications(UPPER,LOWER)
-
         # in other words the population
-        self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
+        if type(self.seed_pop) is not type(None):
+            self.grid_init = self.seed_pop
+            ordered = OrderedDict(self.params)
+            self.td = list(ordered.keys())
+        else:
+            self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
 
         def uniform_params(lower_list, upper_list, dimensions):
             if hasattr(lower_list, '__iter__'):
@@ -229,7 +248,6 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
             return other
         # Register the 'uniform' function
         self.toolbox.register("uniform_params", uniform_params, LOWER, UPPER, IND_SIZE)
-        #import pdb; pdb.set_trace()
 
 
         self.toolbox.register(
@@ -251,7 +269,7 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
 
             if self.backend is None:
                 self.backend = 'RAW'
-            invalid_pop = list(om.update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend))
+            invalid_pop = list(om.update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend, hc = self.hc))
             invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
             fitnesses = list(map(om.evaluate, invalid_dtc))
             return (invalid_pop,fitnesses)
@@ -274,10 +292,8 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
             up=UPPER,
             indpb=0.5)
 
-        # Register the variate operator
         self.toolbox.register("variate", deap.algorithms.varAnd)
 
-    #@jit
     def set_pop(self):
         IND_SIZE = len(list(self.params.values()))
         OBJ_SIZE = len(self.error_criterion)
@@ -287,20 +303,24 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
             pop = [ WSListIndividual(g, obj_size=OBJ_SIZE) for g in self.grid_init ]
         return pop
 
+
+    def run_cma(self, max_ngen = 10):
+        # call other module in this path.
+        pass
+
     def run(self,
-            max_ngen=25,
-            offspring_size=None,
             continue_cp=False,
             cp_filename=None,
-            cp_frequency=2):
+            cp_frequency=2,
+            max_ngen = 10):
         """Run optimisation"""
         # Allow run function to override offspring_size
         # TODO probably in the future this should not be an object field anymore
         # keeping for backward compatibility
-        if offspring_size is None:
-            offspring_size = self.offspring_size
+        #if offspring_size is None:
+        offspring_size = self.offspring_size
 
-        pop = self.toolbox.population(n=offspring_size)
+        #pop = self.toolbox.population(n=offspring_size)
         pop = self.set_pop()
         hof = deap.tools.HallOfFame(offspring_size)
         pf = deap.tools.ParetoFront(offspring_size)
@@ -318,7 +338,7 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
             self.mutpb,
             max_ngen,
             stats=stats,
-            halloffame=hof,
+            hof=hof,
             pf=pf,
             nelite=self.elite_size,
             cp_frequency=cp_frequency,
@@ -329,32 +349,32 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
 
         # insert the initial HOF value back in.
         td = self.td
+        self.results = {'pop':pop,'hof':hof,'pf':pf,'log':log,'history':history,'td':td,'gen_vs_pop':gen_vs_pop}
+        return self.results
 
-
+        '''
         temp = [ v.dtc for k,v in history.genealogy_history.items() ]
         temp = [ i for i in temp if type(i) is not type(None)]
         temp = [ i for i in temp if len(list(i.attrs.values())) != 0.0 ]
         true_history = [ (dtc, dtc.get_ss()) for dtc in temp ]
         true_mins = sorted(true_history, key=lambda h: h[1])
 
-
         #sorted(student_tuples, key=lambda student: student[2])
-        true_mins = sorted(true_history, key=lambda h: h[1])
         hof = [ h for h in hof if len(h)==len(pop[0])]
         hof = [ h for h in hof if type(h.dtc) is not type(None)]
         pf = [ p for p in pf if len(p)==len(pop[0])]
         pf = [ p for p in pf if type(p.dtc) is not type(None)]
-
-        if true_mins[0][1] <  hof[0].dtc.get_ss():
-            #print('hall of fame unreliable, compared to history')
-            hof = [i[0] for i in true_mins]
-            best = hof[0]
-            best_attrs = best.attrs
-
-        print('the true minima: ')
-        print(true_mins[0][1], hof[0].dtc.get_ss())
-
-        self.results = {'pop':pop,'hof':hof,'pf':pf,'log':log,'history':history,'td':td,'gen_vs_pop':gen_vs_pop,'hardened':true_mins}
+        try:
+            assert true_mins[0][1] <  hof[0].dtc.get_ss()
+            if true_mins[0][1] <  hof[0].dtc.get_ss():
+                #print('hall of fame unreliable, compared to history')
+                hof = [i[0] for i in true_mins]
+                best = hof[0]
+                best_attrs = best.attrs
+        except:
+            pass
+        '''
+        '''
         try:
             attr_keys = list(hof[0].dtc.attrs.keys())
 
@@ -380,5 +400,4 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
             except:
                 self.results['dhof'] = [ p.dtc for p in pop ]
                 self.results['bd'] = pop[0].dtc
-
-        return self.results
+        '''

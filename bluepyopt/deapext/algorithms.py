@@ -43,11 +43,13 @@ def _evaluate_invalid_fitness(toolbox, population):
 
     Returns the count of individuals with invalid fitness
     '''
-    #print(population)
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
     invalid_pop,fitnesses = toolbox.evaluate(invalid_ind)
-    for ind, fit in zip(invalid_pop,fitnesses):
-        ind.fitness.values = fit
+    for j, ind in enumerate(invalid_pop):
+        ind.fitness.values = fitnesses[j]
+        ind.dtc.get_ss()
+
+
     return invalid_pop
 
 
@@ -64,10 +66,6 @@ def _update_history_and_hof(halloffame,pf, history, population,td):
             pf.update(population)
         except:
             pass
-            #print(pf,type(pf))
-            #pass
-            #print("Could not update this population", population)
-    history.update(population)
 
     return (halloffame,pf)
 
@@ -80,10 +78,15 @@ def _record_stats(stats, logbook, gen, population, invalid_count):
 def gene_bad(offspring):
     gene_bad = False
     for o in offspring:
-        for gene in o:
-            if math.isnan(gene):
-                gene_bad = True
+        if np.any(np.isnan(o)) or np.any(np.isinf(o)):
+            gene_bad = True
     return gene_bad
+
+
+
+        # for gene in o:
+        #    if math.isnan(gene):
+        #        gene_bad = True
 
 def _get_offspring(parents, toolbox, cxpb, mutpb):
     '''return the offsprint, use toolbox.variate if possible'''
@@ -91,8 +94,19 @@ def _get_offspring(parents, toolbox, cxpb, mutpb):
         offspring = toolbox.variate(parents, toolbox, cxpb, mutpb)
         while gene_bad(offspring) == True:
             offspring = deap.algorithms.varAnd(parents, toolbox, cxpb, mutpb)
+
     return offspring
 
+def _get_worst(halloffame, nworst):
+
+    if nworst > 0 and halloffame is not None:
+
+        normsorted_idx = numpy.argsort([ind.fitness.norm for ind in halloffame])
+        #hofst = [(sum(h.dtc.scores.values()),h.dtc) for h in halloffame ]
+        #ranked = sorted(hofst, key=lambda w: w[0],reverse = True)
+        return [halloffame[idx] for idx in normsorted_idx[-nworst::]]
+    else:
+        return list()
 
 def _get_elite(halloffame, nelite):
 
@@ -104,6 +118,12 @@ def _get_elite(halloffame, nelite):
     else:
         return list()
 
+def prune_constants(parents,num_constants):
+    for i in range(0,num_constants):
+        for p in parents:
+            del p[-1]
+    return parents
+
 def eaAlphaMuPlusLambdaCheckpoint(
         population,
         toolbox,
@@ -112,15 +132,14 @@ def eaAlphaMuPlusLambdaCheckpoint(
         mutpb,
         ngen,
         stats = None,
-        halloffame = None,
-        pf=None,
+        hof = None,
+        pf = None,
         nelite = 3,
         cp_frequency = 1,
         cp_filename = None,
         continue_cp = False,
         selection = 'selNSGA2',
         td=None):
-    #print(halloffame,pf)
     gen_vs_pop = []
 
     if continue_cp:
@@ -136,7 +155,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
     else:
         # Start a new evolution
         start_gen = 1
-        parents = population[:]
+        parents = population#[:]
 
         gen_vs_pop.append(population)
         logbook = deap.tools.Logbook()
@@ -148,70 +167,45 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         invalid_count = len(invalid_ind)
         gen_vs_hof = []
-        halloffame, pf = _update_history_and_hof(halloffame, pf, history, population, td)
+        hof, pf = _update_history_and_hof(hof, pf, history, population, td)
 
-        gen_vs_hof.append(halloffame)
+        gen_vs_hof.append(hof)
         _record_stats(stats, logbook, start_gen, population, invalid_count)
+    toolbox.register("select",selNSGA2)
+
     # Begin the generational    process
     for gen in range(start_gen + 1, ngen + 1):
-
         delta = len(parents[0]) - len(toolbox.Individual())
-        assert delta == 0
+        h = copy.copy(history)
+        temp = [ v for v in h.genealogy_history.values()]
+
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
-        #offspring = [ toolbox.clone(ind) for ind in offspring ]
+        offspring = [ toolbox.clone(ind) for ind in offspring ]
 
         assert len(offspring)>0
         gen_vs_pop.append(offspring)
         invalid_ind = _evaluate_invalid_fitness(toolbox, offspring)
+        # something in evaluate fitness has knocked out fitness
         population = parents + invalid_ind
+        population = [ p for p in population if len(p.fitness.values)!=0 ]
         invalid_count = len(invalid_ind)
+        hof, pf = _update_history_and_hof(hof, pf, history, offspring, td)
+        if pf[0].dtc is not None:
+            print('true minimum',pf[0].dtc.get_ss())
+        elif hof[0].dtc is not None:
+            print('true minimum',hof[0].dtc.get_ss())
 
-        halloffame, pf = _update_history_and_hof(halloffame,pf, history, offspring, td)
         _record_stats(stats, logbook, gen, offspring, invalid_count)
 
-
-        # Select the next generation population
-        #pop = toolbox.select(pop + offspring, MU)
-
-        #set_ = False
         if str('selIBEA') == selection:
             toolbox.register("select",tools.selIBEA)
             #set_ = selection
         if str('selNSGA') == selection:
             toolbox.register("select",selNSGA2)
-            #
-            # make sure that the gene population size is divisible by 4.
-            #if mu % 8 !=0:
-            #        mu = mu + int(mu%4)
-            #assert mu % 8 == 0
-            #set_ = selection
-        assert len(selection) > 1
-        '''
-
-        #unique_values = [ p.dtc.attrs.values() for p in population ]
-        before = len(population)
-        if str('selIBEA') != selection:
-            population = [ind for ind in population if len(ind.fitness.values) != 0]
-            after = len(population)
-            delta = before-after
-            orphans =  [ ind for ind in population if not hasattr(ind,'dtc') ]
-            #dtcpop = list(update_dtc_pop(orphans, td))
-
-            if delta > 0:
-                for i in range(0,delta):
-                    population.append(copy.copy(population[i]))
-                for i in range(0,delta):
-                    index = before-i
-                    population[index].dtc = population[i].dtc
-        '''
-
-        #unique_values = [ p.dtc.attrs.values() for p in population ]
-        #map_dtc = { tuple(p.dtc.attrs.values()):p.dtc for p in population}
         parents = toolbox.select(population, mu)
 
-        #for p in enumerate(parents):
-        #    p.dtc = map_dtc[tuple(p)]
-
+        # make new genes that are in the middle of the best and worst.
+        # make sure best gene breeds.
         logger.info(logbook.stream)
 
         if(cp_filename):# and cp_frequency and
@@ -219,7 +213,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
             cp = dict(population=population,
                       generation=gen,
                       parents=parents,
-                      halloffame=halloffame,
+                      halloffame=hof,
                       history=history,
                       logbook=logbook,
                       rndstate=random.getstate())
@@ -227,9 +221,19 @@ def eaAlphaMuPlusLambdaCheckpoint(
             print('Wrote checkpoint to %s', cp_filename)
             logger.debug('Wrote checkpoint to %s', cp_filename)
 
-        #assert len(unique_values) == len(set(unique_values))
+    return population, hof, pf, logbook, history, gen_vs_pop
+    '''
+    two = copy.copy(_get_elite(temp, 2))
+    worst = copy.copy(_get_elite(temp, 1))
 
-        #print(set(gen_vs_pop[-1][0].dtc.attrs.values()) in set(population[0].dtc.attrs.values()))
+    # make new genes that are in the middle of the two best.
+    mean_best = [ (i+j)/2.0 for i,j in zip(two[0],two[1]) ]
+    mean_worst = [ (i+j)/2.0 for i,j in zip(worst[0],two[1]) ]
 
+    one = copy.copy(parents[0])
+    for ind, o in enumerate(one):
+        o = mean_best[ind]
+    offspring.append(one)
 
-    return population, halloffame, pf, logbook, history, gen_vs_pop
+    one_ = _get_elite(temp, 1)[0]
+    '''
