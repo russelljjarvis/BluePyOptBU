@@ -132,7 +132,7 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
                  mutpb=0.7,
                  cxpb=0.7,
                  map_function=None,
-                 backend=None,
+                 backend = None,
                  nparams = 10,
                  boundary_dict= {},
                  hc = None,
@@ -192,16 +192,33 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
         npoints = 2 ** len(list(self.params))
         npoints = np.ceil(npoints)
         dic_grid = es.create_grid(mp_in = self.params,npoints = self.offspring_size, free_params = self.params)
-        if npoints > self.offspring_size:
+        size = len(dic_grid)
+        if size > self.offspring_size:
             sparsify = np.linspace(0,len(dic_grid)-1,self.offspring_size)
             pop = []
             for i in sparsify:
                 d = dic_grid[int(i)]
                 pop.append([d[k] for k in self.td])
-        else:
+
+        elif size <= self.offspring_size:
+            delta = self.offspring_size - size
             pop = []
             for i in dic_grid:
                 pop.append([i[k] for k in self.td])
+
+            #for i in range(0,delta):
+            while delta:
+                delta = self.offspring_size - size
+                for index in range(0,dic_grid):
+                    d = dic_grid[index]
+                    pop.append([d[k] for k in self.td])
+                    size = len(pop)
+
+        elif size == self.offspring_size:
+            pop = []
+            for i in dic_grid:
+                pop.append([i[k] for k in self.td])
+
         assert len(pop)==self.offspring_size
         return pop
 
@@ -269,6 +286,8 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
 
             if self.backend is None:
                 self.backend = 'RAW'
+            #print(self.backend)
+            #import pdb; pdb.set_trace()
             invalid_pop = list(om.update_deap_pop(invalid_ind, self.error_criterion, td = self.td, backend = self.backend, hc = self.hc))
             invalid_dtc = [ i.dtc for i in invalid_pop if hasattr(i,'dtc') ]
             fitnesses = list(map(om.evaluate, invalid_dtc))
