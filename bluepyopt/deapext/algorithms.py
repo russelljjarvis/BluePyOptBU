@@ -163,14 +163,14 @@ def eaAlphaMuPlusLambdaCheckpoint(
         history = deap.tools.History()
 
         # TODO this first loop should be not be repeated !
-        invalid_ind = _evaluate_invalid_fitness(toolbox, population)
+        parents = _evaluate_invalid_fitness(toolbox, population)
 
-        invalid_count = len(invalid_ind)
+        invalid_count = len(parents)
         gen_vs_hof = []
-        hof, pf = _update_history_and_hof(hof, pf, history, population, td)
+        hof, pf = _update_history_and_hof(hof, pf, history, parents, td)
 
         gen_vs_hof.append(hof)
-        _record_stats(stats, logbook, start_gen, population, invalid_count)
+        _record_stats(stats, logbook, start_gen, parents, invalid_count)
     toolbox.register("select",selNSGA2)
 
     # Begin the generational    process
@@ -192,8 +192,28 @@ def eaAlphaMuPlusLambdaCheckpoint(
         hof, pf = _update_history_and_hof(hof, pf, history, offspring, td)
         if pf[0].dtc is not None:
             print('true minimum',pf[0].dtc.get_ss())
+            population.append(pf[0])
         elif hof[0].dtc is not None:
             print('true minimum',hof[0].dtc.get_ss())
+            population.append(hof[0])
+
+        if pf[0].fitness.values is None:
+            best,fit = toolbox.evaluate(pf[0:1])
+            best.fitness.values = fit
+            best.dtc.get_ss()
+            if np.sum(best.dtc.get_ss()) != 0:
+                print('true minimum',np.sum(pf[0].fitness.values))
+                print(best.dtc.get_ss())
+                population.append(best[0])
+        if hof[0].fitness.values is None:
+            best,fit = toolbox.evaluate(hof[0:1])
+            best.fitness.values = fit
+            best.dtc.get_ss()
+            if np.sum(best.dtc.get_ss()) != 0:
+                print('true minimum',np.sum(hof[0].fitness.values))
+                population.append(best[0])
+
+
 
         _record_stats(stats, logbook, gen, offspring, invalid_count)
 
