@@ -249,9 +249,21 @@ class SciUnitOptimization(bluepyopt.optimisations.Optimisation):
         if self.backend == 'glif':
             LOWER = glif_modifications(UPPER,LOWER)
         # in other words the population
-        if type(self.seed_pop) is not type(None):
+        if type(self.seed_pop) is type([]):
             self.grid_init = self.seed_pop
             ordered = OrderedDict(self.params)
+            self.td = list(ordered.keys())
+
+        elif type(self.seed_pop) is type({}):
+            '''
+            If there is only one point in parameter space, as oppossed to a collection of points:
+            '''
+            ordered = OrderedDict(self.params)
+            ind = []
+            self.grid_init = self.grid_sample_init(self.params)
+            for k,v in ordered.items():
+                ind.append(self.seed_pop[k])
+            self.grid_init.append(ind)
             self.td = list(ordered.keys())
         else:
             self.grid_init = self.grid_sample_init(self.params)#(LOWER, UPPER, self.offspring_size)
