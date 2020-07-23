@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 
 from bluepyopt.ephys.models import ReducedCellModel
 
+import numpy
 
 
 
@@ -61,9 +62,6 @@ simple_cell.backend = "IZHI"
 # To create the cell template, we pass all these objects to the constructor of the template.
 # We *only* put the metaparameter, not its subparameters.
 
-# In[6]:
-
-
 
 from neuronunit.optimisation.model_parameters import MODEL_PARAMS
 import numpy as np
@@ -75,9 +73,6 @@ simple_cell.backend = "IZHI"
 
 
 # Now we can print out a description of the cell
-
-# In[7]:
-
 
 model = simple_cell
 model.params = {k:np.mean(v) for k,v in model.params.items() }
@@ -94,24 +89,12 @@ model.params = {k:np.mean(v) for k,v in model.params.items() }
 # 
 # 
 
-# In[ ]:
-
-
-
-
-
-# In[8]:
-
-
 #twostep_protocol
 
 
 # ### Running a protocol on a cell
 # 
 # Now we're at a stage where we can actually run a protocol on the cell. We first need to create a Simulator object.
-
-# In[9]:
-
 
 
 
@@ -123,9 +106,6 @@ model.params = {k:np.mean(v) for k,v in model.params.items() }
 # 
 # For every response we need to define a set of eFeatures we will use for the fitness calculation later. We have to combine features together into objectives that will be used by the optimalisation algorithm. In this case we will create one objective per feature:
 
-# In[13]:
-
-
 
 tests = pickle.load(open("processed_multicellular_constraints.p","rb"))
 nu_tests = tests['Hippocampus CA1 pyramidal cell'].tests
@@ -134,7 +114,6 @@ nu_tests[0].score_type = ZScore
 nu_tests, OM, target = test_all_objective_test(MODEL_PARAMS["IZHI"],model_type="IZHI",protocol={'allen':False,'elephant':True})
 
 
-# In[14]:
 
 
 nu_tests = list(nu_tests.values())
@@ -144,19 +123,7 @@ target.rheobase
 target.everything
 
 
-# In[ ]:
 
-
-get_ipython().run_cell_magic('capture', '', "'''\nefel_feature_means = {'step1': {'Spikecount': 1}, 'step2': {'Spikecount': 5}}\n\nobjectives = []\n\nfor protocol in sweep_protocols:\n    stim_start = protocol.stimuli[0].step_delay\n    stim_end = stim_start + protocol.stimuli[0].step_duration\n    for efel_feature_name, mean in efel_feature_means[protocol.name].items():\n        feature_name = '%s.%s' % (protocol.name, efel_feature_name)\n        feature = ephys.efeatures.eFELFeature(\n                    feature_name,\n                    efel_feature_name=efel_feature_name,\n                    recording_names={'': '%s.soma.v' % protocol.name},\n                    stim_start=stim_start,\n                    stim_end=stim_end,\n                    exp_mean=mean,\n                    exp_std=0.05 * mean)\n        objective = ephys.objectives.SingletonObjective(\n            feature_name,\n            feature)\n        objectives.append(objective)\n        \nscore_calc = ephys.objectivescalculators.ObjectivesCalculator(objectives)    \n'''")
-
-
-# In[ ]:
-
-
-get_ipython().run_cell_magic('capture', '', "\n\nsweep_protocols = []\nfor protocol_name, amplitude in [('step1', 0.05)]:\n    vm = model.inject_and_plot_model(\n        DELAY=100,\n        DURATION=500    \n    )\n    amplitude = model.rheobase\n    stim = ephys.stimuli.NrnSquarePulse(\n            step_amplitude=amplitude,\n            step_delay=100,\n            step_duration=500,\n            total_duration=1000)\n\n    rec = model.vm\n    \n    protocol = ephys.protocols.SweepProtocol(protocol_name, [stim], [rec])\n    sweep_protocols.append(protocol)\ntwostep_protocol = ephys.protocols.SequenceProtocol('twostep', protocols=sweep_protocols)")
-
-
-# In[ ]:
 
 
 
@@ -251,13 +218,6 @@ score_calc = ephys.objectivescalculators.ObjectivesCalculator(objectives)
 # 
 # We will need an object that can use these objective definitions to calculate the scores from a protocol response. This is called a ScoreCalculator.
 
-# In[ ]:
-
-
-get_ipython().run_cell_magic('capture', '', "'''\nfrom sciunit import TestSuite\nfrom sciunit.scores.collections import ScoreArray\nimport sciunit\nimport numpy as np\nfrom neuronunit.optimisation.optimization_management import dtc_to_rheo, switch_logic,active_values\nnu_tests = switch_logic(nu_tests)\nfrom neuronunit.tests.base import AMPL, DELAY, DURATION\n\ndef rheobase_protocol(model,nu_tests):\n    dtc = model.model_to_dtc()\n    dtc = dtc_to_rheo(dtc)\n    model.rheobase = dtc.rheobase\n    for v in nu_tests:\n        k = v.name\n        if not hasattr(v,'params'):\n            v.params = {}\n        if not 'injected_square_current' in v.params.keys():    \n            v.params['injected_square_current'] = {}\n        if v.passive == False and v.active == True:\n            keyed = v.params['injected_square_current']\n            v.params = active_values(keyed,dtc.rheobase)\n            v.params['injected_square_current']['delay'] = DELAY\n            v.params['injected_square_current']['duration'] = DURATION\n    return model,nu_tests\n\n\ndef evaluate(nu_tests,model):\n    scores_ = []\n    suite = TestSuite(nu_tests)\n    for t in suite:\n        if 'RheobaseTest' in t.name: t.score_type = sciunit.scores.ZScore\n        if 'RheobaseTestP' in t.name: t.score_type = sciunit.scores.ZScore\n        if 'mean' not in t.observation.keys():\n            t.observation['mean'] = t.observation['value']\n        score_gene = t.judge(model)\n        if not isinstance(type(score_gene),type(None)):\n            if not isinstance(type(score_gene),sciunit.scores.InsufficientDataScore):\n                if not isinstance(type(score_gene.log_norm_score),type(None)):\n                    try:\n\n                        lns = np.abs(score_gene.log_norm_score)\n                    except:\n                        # works 1/2 time that log_norm_score does not work\n                        # more informative than nominal bad score 100\n                        lns = np.abs(score_gene.raw)\n                else:\n                    # works 1/2 time that log_norm_score does not work\n                    # more informative than nominal bad score 100\n\n                    lns = np.abs(score_gene.raw)\n            else:\n                pass\n        scores_.append(lns)\n    for i,s in enumerate(scores_):\n        if s==np.inf:\n            scores_[i] = 100 #np.abs(float(score_gene.raw))\n    SA = ScoreArray(nu_tests, scores_)\n    fitness = (v for v in SA.values)\n    objectives = SA.to_dict()\n    return fitness\n'''\n\n#ephys.objectivescalculators.ObjectivesCalculator = \n#score_calc = ephys.objectivescalculators.ObjectivesCalculator(nu_tests,model) \n#score_calc.objectives = objectives")
-
-
-# In[ ]:
 
 
 
@@ -275,9 +235,26 @@ nu_tests[0].score_type = ZScore
 
 
 # Combining everything together we have a CellEvaluator. The CellEvaluator constructor has a field 'parameter_names' which contains the (ordered) list of names of the parameters that are used as input (and will be fitted later on).
+sweep_protocols = []
+for protocol_name, amplitude in [('step1', 0.05)]:
+    '''
+    vm = model.inject_and_plot_model(
+        AMPL=amplitude,
+        DELAY=100,
+        DURATION=500    
+    )
+    amplitude = model.rheobase
+    stim = ephys.stimuli.NrnSquarePulse(
+            step_amplitude=amplitude,
+            step_delay=100,
+            step_duration=500,
+            total_duration=1000)
 
-# In[ ]:
-
+    rec = model.vm
+    '''
+    protocol = ephys.protocols.SweepProtocol(protocol_name, [None], [None])
+    sweep_protocols.append(protocol)
+twostep_protocol = ephys.protocols.SequenceProtocol('twostep', protocols=sweep_protocols)
 
 MODEL_PARAMS["IZHI"]
 cell_evaluator = ephys.evaluators.CellEvaluator(
@@ -325,16 +302,11 @@ final_pop, hall_of_fame, logs, hist = optimisation.run(max_ngen=35)
 # 
 # The final population contains a list of tuples, with each tuple representing the two parameters of the model
 
-# In[ ]:
-
 
 print('Final population: ', final_pop)
 
 
 # The best individual found during the optimisation is the first individual of the hall of fame
-
-# In[ ]:
-
 
 best_ind = hall_of_fame[0]
 print('Best individual: ', best_ind)
@@ -343,22 +315,14 @@ print('Fitness values: ', best_ind.fitness.values)
 
 # We can evaluate this individual and make use of a convenience function of the cell evaluator to return us a dict of the parameters
 
-# In[ ]:
-
 
 best_ind_dict = cell_evaluator.param_dict(best_ind)
 print(cell_evaluator.evaluate_with_dicts(best_ind_dict))
 
 
-# In[ ]:
-
-
 model = cell_evaluator.cell_model
 cell_evaluator.param_dict(best_ind)
 model.attrs = {str(k):float(v) for k,v in cell_evaluator.param_dict(best_ind).items()}
-
-
-# In[ ]:
 
 
 
@@ -383,10 +347,6 @@ inject_and_plot_passive_model(opt,second=target)
 # We can plot the minimal score (sum of all objective scores) found in every optimisation. 
 # The optimisation algorithm uses negative fitness scores, so we actually have to look at the maximum values log.
 
-# In[ ]:
-
-
-import numpy
 gen_numbers = logs.select('gen')
 min_fitness = logs.select('min')
 max_fitness = logs.select('max')
@@ -396,16 +356,5 @@ plt.ylabel('score (# std)')
 plt.legend()
 plt.xlim(min(gen_numbers) - 1, max(gen_numbers) + 1) 
 plt.ylim(0.9*min(min_fitness), 1.1 * max(min_fitness)) 
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
 
 
