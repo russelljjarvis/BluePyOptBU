@@ -143,7 +143,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
     pbar = tqdm(total=ngen)
     while not(_check_stopping_criteria(stopping_criteria, stopping_params)):
-        pbar.update(10)
+        
 
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
 
@@ -157,6 +157,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
         parents = toolbox.select(population, mu)
 
         logger.info(logbook.stream)
+        pbar.update(1)
 
         if(cp_filename and cp_frequency and
            gen % cp_frequency == 0):
@@ -172,5 +173,5 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         gen += 1
         stopping_params["gen"] = gen
-
+    pbar.close()
     return population, halloffame, logbook, history
