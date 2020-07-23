@@ -57,6 +57,168 @@ class Model(object):
         """Destroy instantiated model in simulator"""
         pass
 
+from .very_reduced_sans_lems import VeryReducedModel
+import neuronunit.capabilities as cap
+from sciunit.models.runnable import RunnableModel
+
+class ReducedCellModel(VeryReducedModel,
+                       RunnableModel,
+                       cap.ReceivesSquareCurrent,
+                       cap.ProducesActionPotentials,
+                       cap.ProducesMembranePotential):
+
+    """Cell model class"""
+
+    def __init__(
+            self,
+            name,
+            params=None,
+            gid=0,
+            backend=None):
+        """Constructor
+
+        Args:
+            name (str): name of this object
+                        should be alphanumeric string, underscores are allowed,
+                        first char should be a letter
+            morph (Morphology):
+                underlying Morphology of the cell
+            mechs (list of Mechanisms):
+                Mechanisms associated with the cell
+            params (list of Parameters):
+                Parameters of the cell model
+        """
+        #super(CellModel, self).__init__(name)
+        super(VeryReducedModel, self).__init__(name=name,backend=backend)
+        
+        #super(VeryReducedModel, self).__init__(name=name,backend=backend, attrs=attrs)
+        self.backend = backend
+        self.attrs = {}
+        self.run_number = 0
+        self.tstop = None
+        self.rheobse = None
+        self.check_name()
+        self.params = collections.OrderedDict(**params)
+
+
+        # Cell instantiation in simulator
+        self.icell = None
+        self.param_values = None
+        self.gid = gid
+        self.NU = True
+
+    def model_to_dtc(self):
+        from neuronunit.optimisation.data_transport_container import DataTC
+        import copy
+        dtc = DataTC()
+        dtc.attrs = self.params
+        dtc.backend = copy.copy(self.backend)
+        try:
+            assert self._backend is not None
+        except:
+            super(VeryReducedModel, self).__init__(name=self.name,backend=self.backend)
+            assert self._backend is not None
+
+        return dtc
+
+    def inject_and_plot_model(self,
+                                DELAY=100,
+                                DURATION=500): 
+        from neuronunit.optimisation.optimization_management import dtc_to_rheo  
+        #if not hasattr(self,'dtc'):
+        dtc = self.model_to_dtc()
+        dtc = dtc_to_rheo(dtc)
+        self.rheobase = dtc.rheobase
+        uc = {'amplitude':self.rheobase,'duration':DURATION,'delay':DELAY}
+        self._backend.inject_square_current(uc)
+        vm = self.get_membrane_potential()
+        self.vm = vm
+        return vm    
+
+    def check_name(self):
+        """Check if name complies with requirements"""
+
+        allowed_chars = string.ascii_letters + string.digits + '_'
+
+        if sys.version_info[0] < 3:
+            translate_args = [None, allowed_chars]
+        else:
+            translate_args = [str.maketrans('', '', allowed_chars)]
+
+        if self.name == '' \
+                or self.name[0] not in string.ascii_letters \
+                or not str(self.name).translate(*translate_args) == '':
+            raise TypeError(
+                'CellModel: name "%s" provided to constructor does not comply '
+                'with the rules for Neuron template name: name should be '
+                'alphanumeric '
+                'non-empty string, underscores are allowed, '
+                'first char should be letter' % self.name)
+
+    def params_by_names(self, param_names):
+        """Get parameter objects by name"""
+
+        return [self.params[param_name] for param_name in param_names]
+
+    def freeze(self, param_dict):
+        """Set params"""
+
+        for param_name, param_value in param_dict.items():
+            self.params[param_name].freeze(param_value)
+
+    def unfreeze(self, param_names):
+        """Unset params"""
+
+        for param_name in param_names:
+            self.params[param_name].unfreeze()
+
+    def instantiate(self, sim=None):
+        """
+        Instantiate model in simulator
+        As if called from a genetic algorithm.
+        """
+        #self.icell.gid = self.gid
+        if self.params is not None:
+            self.attrs = self.params
+
+        dtc = self.model_to_dtc()
+        for k,v in self.params.items():
+            v = float(v.value)
+            dtc.attrs[k] = v
+            self.attrs[k] = v
+        return dtc
+
+            #for param in self.params.values():
+            #    model.attrs[param] = 
+                #param.instantiate(sim=sim, icell=self.icell)
+    def destroy(self, sim=None):  # pylint: disable=W0613
+        """Destroy instantiated model in simulator"""
+
+        # Make sure the icell's destroy() method is called
+        # without it a circular reference exists between CellRef and the object
+        # this prevents the icells from being garbage collected, and
+        # cell objects pile up in the simulator
+        self.icell.destroy()
+
+        # The line below is some M. Hines magic
+        # DON'T remove it, because it will make sure garbage collection
+
+        del self.icell# = None
+        for param in self.params.values():
+            param.destroy(sim=sim)
+
+    def check_nonfrozen_params(self, param_names):  # pylint: disable=W0613
+        """Check if all nonfrozen params are set"""
+        for param_name, param in self.params.items():
+            if not param.frozen:
+                raise Exception(
+                    'CellModel: Nonfrozen param %s needs to be '
+                    'set before simulation' %
+                    param_name)
+
+
+
+
 
 class CellModel(Model):
 

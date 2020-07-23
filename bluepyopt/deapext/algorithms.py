@@ -29,6 +29,8 @@ import deap.algorithms
 import deap.tools
 import pickle
 
+from tqdm import tqdm
+
 from .stoppingCriteria import MaxNGen
 
 logger = logging.getLogger('__main__')
@@ -138,7 +140,11 @@ def eaAlphaMuPlusLambdaCheckpoint(
     # Begin the generational process
     gen = start_gen + 1
     stopping_params = {"gen": gen}
+
+    pbar = tqdm(total=ngen)
     while not(_check_stopping_criteria(stopping_criteria, stopping_params)):
+        pbar.update(10)
+
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
 
         population = parents + offspring

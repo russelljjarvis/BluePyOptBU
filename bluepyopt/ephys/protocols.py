@@ -167,11 +167,23 @@ class SweepProtocol(Protocol):
         try:
             cell_model.freeze(param_values)
             cell_model.instantiate(sim=sim)
-
-            self.instantiate(sim=sim, icell=cell_model.icell)
-
             try:
-                sim.run(self.total_duration, cvode_active=self.cvode_active)
+                self.instantiate(sim=sim, icell=cell_model.icell)
+            except:
+                pass
+            try:
+                if not hasattr(cell_model,'NU'):
+                    sim.run(self.total_duration, cvode_active=self.cvode_active)
+                else:
+                    vm = cell_model.inject_and_plot_model()
+                    responses = {'name':'rheobase_inj','response':vm,'model':cell_model.model_to_dtc(),'rheobase':cell_model.rheobase,'params':param_values}
+                    #self.destroy(sim=sim)
+                    #cell_model.destroy(sim=sim)
+                    #cell_model.unfreeze(param_values.keys())
+                    #del cell_model
+                    return responses
+
+
             except (RuntimeError, simulators.NrnSimulatorException):
                 logger.debug(
                     'SweepProtocol: Running of parameter set {%s} generated '
