@@ -78,7 +78,7 @@ def get_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='L5PC example',
         epilog=textwrap.dedent('''\
-The folling environment variables are considered:
+    The folling environment variables are considered:
     L5PCBENCHMARK_USEIPYP: if set, will use ipyparallel
     IPYTHON_PROFILE: if set, used as the path to the ipython profile
     BLUEPYOPT_SEED: The seed used for initial randomization

@@ -35,7 +35,8 @@ from . import algorithms
 from . import tools
 
 import bluepyopt.optimisations
-
+import copyreg
+import types
 logger = logging.getLogger('__main__')
 
 # TODO decide which variables go in constructor,which ones go in 'run' function
@@ -232,12 +233,10 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         else:
             raise ValueError('DEAPOptimisation: Constructor selector_name '
                              'argument only accepts "IBEA" or "NSGA2"')
-
         def _reduce_method(meth):
             """Overwrite reduce"""
             return (getattr, (meth.__self__, meth.__func__.__name__))
-        import copyreg
-        import types
+
         copyreg.pickle(types.MethodType, _reduce_method)
 
         if self.use_scoop:

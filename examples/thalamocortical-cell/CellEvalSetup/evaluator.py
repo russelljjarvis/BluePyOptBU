@@ -22,8 +22,8 @@ import json
 
 import bluepyopt.ephys as ephys
 
-import template  # pylint: disable=W0403
-import protocols  # pylint: disable=W0403
+from . import template  # pylint: disable=W0403
+from . import protocols  # pylint: disable=W0403
 
 
 import logging

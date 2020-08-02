@@ -29,20 +29,25 @@ import deap.algorithms
 import deap.tools
 import pickle
 
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from .stoppingCriteria import MaxNGen
 
 logger = logging.getLogger('__main__')
-
-
+DASK = False
+import dask
 def _evaluate_invalid_fitness(toolbox, population):
     '''Evaluate the individuals with an invalid fitness
 
     Returns the count of individuals with invalid fitness
     '''
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
-    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+    eval_ = toolbox.evaluate
+    #lazy = dask.delayed((eval_)(ind) for ind in invalid_ind)            
+    #try:
+    #    fitnesses = list(dask.compute(lazy))
+    #except:
+    fitnesses = toolbox.map(eval_, invalid_ind)
     for ind, fit in zip(invalid_ind, fitnesses):
         ind.fitness.values = fit
 
@@ -83,7 +88,7 @@ def _check_stopping_criteria(criteria, params):
     else:
         return False
 
-
+import numpy as np
 def eaAlphaMuPlusLambdaCheckpoint(
         population,
         toolbox,
@@ -133,7 +138,10 @@ def eaAlphaMuPlusLambdaCheckpoint(
         # TODO this first loop should be not be repeated !
         invalid_count = _evaluate_invalid_fitness(toolbox, population)
         _update_history_and_hof(halloffame, history, population)
+        
         _record_stats(stats, logbook, start_gen, population, invalid_count)
+        logger.info(logbook.stream)
+
 
     stopping_criteria = [MaxNGen(ngen)]
 
@@ -148,16 +156,17 @@ def eaAlphaMuPlusLambdaCheckpoint(
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
 
         population = parents + offspring
-
+        population.append(halloffame[0])
+        #flo = halloffame[0].fitness.values
+        #print(flo,np.sum(halloffame[0].fitness.values),'inside')
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
+        
         _update_history_and_hof(halloffame, history, population)
         _record_stats(stats, logbook, gen, population, invalid_count)
 
         # Select the next generation parents
         parents = toolbox.select(population, mu)
-
         logger.info(logbook.stream)
-        pbar.update(1)
 
         if(cp_filename and cp_frequency and
            gen % cp_frequency == 0):
@@ -173,5 +182,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         gen += 1
         stopping_params["gen"] = gen
+        pbar.update(1)
+    pbar.update(1)
     pbar.close()
     return population, halloffame, logbook, history
