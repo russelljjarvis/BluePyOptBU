@@ -118,9 +118,9 @@ nu_tests, OM, target = test_all_objective_test(MODEL_PARAMS["ADEXP"],model_type=
 
 nu_tests = list(nu_tests.values())
 nu_tests[0].score_type = ZScore
-target = three_step_protocol(target)
-target.rheobase
-target.everything
+#target = three_step_protocol(target)
+#target.rheobase
+#target.everything
 
 
 
@@ -229,7 +229,7 @@ for k,v in MODEL_PARAMS["ADEXP"].items():
     
 simple_cell.params = lop
 
-nu_tests[0].judge(simple_cell)
+#nu_tests[0].judge(simple_cell)
 from sciunit.scores import ZScore
 nu_tests[0].score_type = ZScore
 
