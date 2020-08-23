@@ -1,10 +1,13 @@
 <img src="docs/source/logo/BluePyOptBanner.png"/>
 
+
+![optimizer_app.mp4](optimizer_app.mp4)
 -----------------
 
 <p align="center">
   <img src="optimizer_app.mp4" width="700" height="450"/>
 </p>
+
 ------------------
 # BluePyOpt: Blue Brain Python Optimisation Library
 
