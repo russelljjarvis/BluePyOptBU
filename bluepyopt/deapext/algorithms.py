@@ -100,7 +100,9 @@ def eaAlphaMuPlusLambdaCheckpoint(
         halloffame=None,
         cp_frequency=1,
         cp_filename=None,
-        continue_cp=False):
+        continue_cp=False,
+        extra=None,
+        ELITISM=True):
     r"""This is the :math:`(~\alpha,\mu~,~\lambda)` evolutionary algorithm
 
     Args:
@@ -152,12 +154,15 @@ def eaAlphaMuPlusLambdaCheckpoint(
     pbar = tqdm(total=ngen)
     while not(_check_stopping_criteria(stopping_criteria, stopping_params)):
         
-
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
 
         population = parents + offspring
-        population.append(halloffame[0])
-        #flo = halloffame[0].fitness.values
+        if ELITISM:
+            population.append(halloffame[0])
+        flo = np.sum(halloffame[0].fitness.values)
+        stopping_params.update({'hof':flo})
+        stop = _check_stopping_criteria(stopping_criteria, stopping_params)
+        
         #print(flo,np.sum(halloffame[0].fitness.values),'inside')
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
         
@@ -166,10 +171,12 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
         # Select the next generation parents
         parents = toolbox.select(population, mu)
+        if ELITISM:
+            parents.append(halloffame[0])
         logger.info(logbook.stream)
 
         if(cp_filename and cp_frequency and
-           gen % cp_frequency == 0):
+           gen % cp_frequency == 0 or cp_filename and stop):
             cp = dict(population=population,
                       generation=gen,
                       parents=parents,
@@ -185,4 +192,14 @@ def eaAlphaMuPlusLambdaCheckpoint(
         pbar.update(1)
     pbar.update(1)
     pbar.close()
+    cp = dict(population=population,
+            generation=gen,
+            parents=parents,
+            halloffame=halloffame,
+            history=history,
+            logbook=logbook,
+            rndstate=random.getstate())
+    #with open('out_file.p', "wb") as f:
+    #    pickle.dump(cp, f)
+
     return population, halloffame, logbook, history

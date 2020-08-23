@@ -157,6 +157,7 @@ class eFELFeature(EFeature, DictMixin):
                 efel.setIntSetting(setting_name, setting_value)
 
         if self.string_settings is not None:
+            print(self.string_settings)
             for setting_name, setting_value in self.string_settings.items():
                 efel.setStrSetting(setting_name, setting_value)
 

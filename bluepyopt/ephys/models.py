@@ -38,6 +38,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+from .very_reduced_sans_lems import VeryReducedModel
+import neuronunit.capabilities as cap
+from sciunit.models.runnable import RunnableModel
+from neuronunit.optimisation.data_transport_container import DataTC
+import copy
+
+import bluepyopt.ephys as ephys
+
+import numpy as np
 class Model(object):
 
     """Model"""
@@ -57,9 +66,9 @@ class Model(object):
         """Destroy instantiated model in simulator"""
         pass
 
-from .very_reduced_sans_lems import VeryReducedModel
-import neuronunit.capabilities as cap
-from sciunit.models.runnable import RunnableModel
+import gc
+
+import asciiplotlib as apl
 
 class ReducedCellModel(VeryReducedModel,
                        RunnableModel,
@@ -74,7 +83,8 @@ class ReducedCellModel(VeryReducedModel,
             name,
             params=None,
             gid=0,
-            backend=None):
+            backend=None, 
+            tests = None):
         """Constructor
 
         Args:
@@ -87,19 +97,22 @@ class ReducedCellModel(VeryReducedModel,
                 Mechanisms associated with the cell
             params (list of Parameters):
                 Parameters of the cell model
+            backend a NeuronUnit model backend/model simulator combination
+            tests: NeuronUnit test suite used to extract features.
         """
         #super(CellModel, self).__init__(name)
         super(VeryReducedModel, self).__init__(name=name,backend=backend)
         
         #super(VeryReducedModel, self).__init__(name=name,backend=backend, attrs=attrs)
         self.backend = backend
+        #self._backend = str('')
         self.attrs = {}
         self.run_number = 0
         self.tstop = None
         self.rheobse = None
         self.check_name()
         self.params = collections.OrderedDict(**params)
-
+        self.tests = tests
 
         # Cell instantiation in simulator
         self.icell = None
@@ -107,32 +120,81 @@ class ReducedCellModel(VeryReducedModel,
         self.gid = gid
         self.NU = True
 
-    def model_to_dtc(self):
-        from neuronunit.optimisation.data_transport_container import DataTC
-        import copy
-        dtc = DataTC()
-        dtc.attrs = self.params
-        dtc.backend = copy.copy(self.backend)
-        try:
-            assert self._backend is not None
-        except:
-            super(VeryReducedModel, self).__init__(name=self.name,backend=self.backend)
-            assert self._backend is not None
+    def model_to_dtc(self,attrs=None):
+        """
+        Args:
+            self
+        Returns: 
+            dtc
+            DTC is a simulator indipendent data transport container object.
+        """
+            
+        dtc = DataTC(backend=self.backend)
+        if hasattr(self,'tests'):
+            if type(self.tests) is not type(None):
+                dtc.tests = self.tests
 
+        if type(attrs) is not type(None):
+            if len(attrs):
+                dtc.attrs = attrs
+                self.attrs = attrs
+            assert self._backend is not None
+            return dtc
+        else:
+            if type(self.attrs) is not type(None):
+                if len(self.attrs):
+                    try:
+                        dynamic_attrs = {str(k):float(v) for k,v in self.attrs.items()}
+                    except:
+                        dynamic_attrs = {str(k):float(v.value) for k,v in self.attrs.items()}
+
+        if self._backend is None:
+            super(VeryReducedModel, self).__init__(name=self.name,backend=self.backend)#,attrs=dtc.attrs)
+            assert self._backend is not None
+        frozen_attrs = self._backend.default_attrs
+        if 'dynamic_attrs' in locals():
+            frozen_attrs.update(dynamic_attrs)
+        all_attrs = frozen_attrs
+        dtc.attrs = all_attrs
+        assert dtc.attrs is not None
         return dtc
 
-    def inject_and_plot_model(self,
-                                DELAY=100,
-                                DURATION=500): 
+    def inject_model(self,
+                     DELAY=100,
+                     DURATION=500): 
+        dynamic_attrs = {str(k):float(v) for k,v in self.params.items()}
+        #assert len(dynamic_attrs)
+        frozen_attrs = self._backend.default_attrs
+
+        frozen_attrs.update(dynamic_attrs)
+        all_attrs = frozen_attrs
+        #attrs = copy.copy(dfa)
+        #attrs.update(copy.copy(param_values))
+        dtc = self.model_to_dtc(attrs=all_attrs)
+        #self.destroy()
+        assert len(dtc.attrs)
         from neuronunit.optimisation.optimization_management import dtc_to_rheo  
-        #if not hasattr(self,'dtc'):
-        dtc = self.model_to_dtc()
+
         dtc = dtc_to_rheo(dtc)
+
+        #super(VeryReducedModel, self).__init__(name=name,backend=backend)
+
         self.rheobase = dtc.rheobase
-        uc = {'amplitude':self.rheobase,'duration':DURATION,'delay':DELAY}
-        self._backend.inject_square_current(uc)
-        vm = self.get_membrane_potential()
-        self.vm = vm
+            
+            
+        vm = [np.nan]
+        if self.rheobase is not None:
+            uc = {'amplitude':self.rheobase,'duration':DURATION,'delay':DELAY}
+            self._backend.attrs = all_attrs
+            try:
+                self._backend.inject_square_current(uc)
+                vm = self.get_membrane_potential()
+                self.vm = vm
+            except:
+                vm = [np.nan]
+                #print('frozne',frozen_attrs,'dyn',dynamic_attrs,'self',self.attrs)            
+        else:
+            self.vm = vm
         return vm    
 
     def check_name(self):
@@ -206,6 +268,7 @@ class ReducedCellModel(VeryReducedModel,
         del self.icell# = None
         for param in self.params.values():
             param.destroy(sim=sim)
+            print('destroyed param')
 
     def check_nonfrozen_params(self, param_names):  # pylint: disable=W0613
         """Check if all nonfrozen params are set"""
@@ -219,8 +282,14 @@ class ReducedCellModel(VeryReducedModel,
 
 
 
+from sciunit.models import Model as SciUnitModel
+from neuronunit.models.static import ExternalModel 
+import quantities as pq
 
 class CellModel(Model):
+                #cap.ReceivesSquareCurrent,
+                #cap.ProducesActionPotentials,
+                #cap.ProducesMembranePotential):
 
     """Cell model class"""
 
@@ -299,6 +368,37 @@ class CellModel(Model):
 
         for param_name in param_names:
             self.params[param_name].unfreeze()
+
+    def inject_square_current(self,current):
+        import l5pc_evaluator
+
+        sweep_protocols = []
+        fitness_protocols = l5pc_evaluator.define_protocols()
+        protocol = fitness_protocols['Step3']
+        if 'injected_square_current' in current.keys():
+            current = current['injected_square_current']
+        protocol.stimuli[0].step_amplitude = float(current['amplitude'])
+        protocol.stimuli[0].step_delay = float(current['delay'])
+        protocol.stimuli[0].step_duration = float(current['duration'])
+        #protocol.stimuli[0].
+        total_duration = float(current['delay']) + \
+                        float(current['duration']) \
+                        + 200       
+        protocol.stimuli[0].total_duration = total_duration          
+        fitness_calculator = l5pc_evaluator.define_fitness_calculator(fitness_protocols)
+        param_names = [param for param in self.params.keys()]
+
+        sim = ephys.simulators.NrnSimulator()
+        evalu = ephys.evaluators.CellEvaluator(
+            cell_model=self,
+            param_names=param_names,
+            fitness_protocols=fitness_protocols,
+            fitness_calculator=fitness_calculator,
+            sim=sim)
+        response = evalu.run_protocol(evalu.fitness_protocols['Step3'],evalu.params)   
+
+        return response
+        
 
     @staticmethod
     def create_empty_template(
@@ -622,3 +722,30 @@ class HocCellModel(CellModel):
                 'NEURON does not have template: ' + template_name
 
         return template_name
+
+class NU_HocCellModel(HocCellModel,RunnableModel,
+                       cap.ReceivesSquareCurrent,
+                       cap.ProducesActionPotentials,
+                       cap.ProducesMembranePotential):
+
+    def __init__(self, name, morphology_path, hoc_path=None, hoc_string=None):
+        """Constructor
+
+        Args:
+            name(str): name of this object
+            sim(NrnSimulator): simulator in which to instatiate hoc_string
+            hoc_path(str): Path to a hoc file
+                (hoc_path and hoc_string can't be used simultaneously,
+                but one of them has to specified)
+            hoc_string(str): String that of hoc code that defines a template
+                (hoc_path and hoc_string can't be used simultaneously,
+                but one of them has to specified))
+            morphology_path(str path): path to morphology that can be loaded by
+                                    Neuron
+        """
+        super(NU_HocCellModel, self).__init__(name,
+                                        morph=None,
+                                        mechs=[],
+                                        params=[])
+        self.NU = True
+

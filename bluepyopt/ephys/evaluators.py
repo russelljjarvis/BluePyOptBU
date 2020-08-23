@@ -194,22 +194,25 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
         responses = self.run_protocols(
             self.fitness_protocols.values(),
             param_dict)
-
         return self.fitness_calculator.calculate_scores(responses)
-
+        
     def evaluate_with_lists(self, param_list=None):
         """Run evaluation with lists as input and outputs"""
 
         param_dict = self.param_dict(param_list)
-
         obj_dict = self.evaluate_with_dicts(param_dict=param_dict)
-
         return self.objective_list(obj_dict)
 
     def evaluate(self, param_list=None):
         """Run evaluation with lists as input and outputs"""
-
-        return self.evaluate_with_lists(param_list)
+        if hasattr(self,'NU'):
+            param_dict = self.param_dict(param_list)
+            responses = self.run_protocols(
+            self.fitness_protocols.values(),
+            param_dict)
+            return responses
+        else:
+            return self.evaluate_with_lists(param_list)
 
     def __str__(self):
 
