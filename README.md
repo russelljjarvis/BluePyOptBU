@@ -3,7 +3,7 @@
 -----------------
 
 <p align="center">
-  <img src="optimizer_app.flv" width="700" height="450"/>
+  <img src="optimizer_app.mp4" width="700" height="450"/>
 </p>
 
 # BluePyOpt: Blue Brain Python Optimisation Library
