@@ -1,7 +1,5 @@
 <img src="docs/source/logo/BluePyOptBanner.png"/>
 
-
-![optimizer_app.mp4](https://github.com/fun-zoological-computing/BluePyOpt/blob/master/optimizer_app.mp4)
 -----------------
 
 <p align="center">
