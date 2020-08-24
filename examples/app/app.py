@@ -1,6 +1,5 @@
 """
-Process-sleep-data.py
-Processes fitbit sleep data files, uploads data into fitbit dataframe, outputs graphs.
+BPO front end for reduced neural models
 """  	
 
 import pandas as pd
