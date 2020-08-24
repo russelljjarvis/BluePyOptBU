@@ -1,4 +1,6 @@
-
+"""
+BPO front end for reduced neural models
+"""  	
 
 import pandas as pd
 import numpy as np                       
@@ -48,7 +50,7 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
   best_ind = hall_of_fame[0]
 
   
-  #self_evaluate
+
   st.success("Model best fit to experiment {0}".format(test_key))
   st.markdown('\n\n\n\n')
 
