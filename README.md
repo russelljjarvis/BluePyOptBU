@@ -1,9 +1,8 @@
-<img src="docs/source/logo/BluePyOptBanner.png"/>
 
 -----------------
 
 <p align="center">
-  <img src="optimizer_app.mp4" width="700" height="450"/>
+  <img src="optimizer_app.mp4" width="900" height="650"/>
 </p>
 
 ------------------
