@@ -2,7 +2,7 @@
 -----------------
 
 <p align="center">
-  <img src="optimizer_app.mp4" width="900" height="650"/>
+  <img src="optimizer_app.mp4" width="700" height="550"/>
 </p>
 
 ------------------
