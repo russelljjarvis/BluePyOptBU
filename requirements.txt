@@ -12,7 +12,6 @@ allensdk==0.16.3
 simplejson==3.17.0
 future==0.17.1
 streamlit==0.52.2
-boto3==1.14.7
 asciiplotlib==0.2.3
 pandas==1.1.0
 matplotlib==3.1.1
@@ -26,4 +25,4 @@ backports.statistics==0.1.0
 python_dateutil==2.8.1
 scikit_learn==0.23.2
 git+https://github.com/russelljjarvis/neuronunit
-git+https://github.com/scidash/sciunit@dev
+git+https://github.com/scidash/sciunit
