@@ -93,7 +93,8 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
     """DEAP Optimisation class"""
 
-    def __init__(self, evaluator=None,
+    def __init__(self, 
+                 evaluator=None,
                  use_scoop=False,
                  seed=1,
                  offspring_size=10,
@@ -102,7 +103,8 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                  cxpb=1.0,
                  map_function=None,
                  hof=None,
-                 selector_name=None):
+                 selector_name=None,
+                 seeded_pop= None):
         """Constructor
 
         Args:
@@ -130,7 +132,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.cxpb = cxpb
         self.mutpb = mutpb
         self.map_function = map_function
-
+        self.seeded_pop = seeded_pop
         self.selector_name = selector_name
         if self.selector_name is None:
             self.selector_name = 'IBEA'
@@ -267,7 +269,28 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             offspring_size = self.offspring_size
 
         # Generate the population object
-        pop = self.toolbox.population(n=offspring_size)
+        if self.seeded_pop is None:
+            pop = self.toolbox.population(n=offspring_size)
+        else:
+            pop = self.toolbox.population(n=offspring_size)
+            for ind,sd in zip(pop,self.seeded_pop[0]):
+                for i,j in enumerate(ind):
+                    ind[i] = sd[i]
+            #self.hof = self.seeded_pop[1]
+            '''
+            replaced = []            
+            for ind,sd in zip(pop,self.seeded_pop[1]):
+                for i,j in enumerate(ind):
+                    ind[i] = sd[i]
+                    for f in ind[i].fitness.values:
+                        f = 0.5
+                    replaced.append(ind)
+
+            self.hof = replaced
+            '''
+            #import pdb
+            #pdb.set_trace()
+            #del self.seeded_pop
 
         stats = deap.tools.Statistics(key=lambda ind: ind.fitness.sum)
         import numpy

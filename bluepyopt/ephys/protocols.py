@@ -127,7 +127,7 @@ class SequenceProtocol(Protocol):
             content += '%s\n' % str(protocol)
 
         return content
-
+from bluepyopt.parameters import Parameter
 class SweepProtocol(Protocol):
 
     """Sweep protocol"""
@@ -168,8 +168,36 @@ class SweepProtocol(Protocol):
         """Run protocols"""
 
         try:
+
+            ##
+            # this new block could be a failure cause
+            ##
+            #try:
             cell_model.freeze(param_values)
             cell_model.instantiate(sim=sim)
+            '''
+            fix parameters in l5pc model
+            #except:
+                #import pdb
+                #pdb.set_trace()
+                
+                replace = {}
+                #cell_model.attrs = {}
+                for k,v in param_values.items():
+                    #cell_model.attrs[k] = 
+                    replace[k] = Parameter(k,value=param_values[k])
+                param_values = replace
+                cell_model.params = replace
+                #import pdb
+                #pdb.set_trace()
+                cell_model.freeze(param_values)
+                for k,v in cell_model.params.items():
+                    cell_model.params[k] = float(v)
+ 
+                #print('passed')
+                
+                #pass
+            '''
             try:
                 self.instantiate(sim=sim, icell=cell_model.icell)
             except:
@@ -269,7 +297,7 @@ class SweepProtocol(Protocol):
         import types
         copyreg.pickle(types.MethodType, _reduce_method)
         '''
-        if isolate and not cell_model.name in 'L5PC':
+        if isolate:# and not cell_model.name in 'L5PC':
             
             def _reduce_method(meth):
                 """Overwrite reduce"""
@@ -286,7 +314,7 @@ class SweepProtocol(Protocol):
                 if timeout < 0:
                     raise ValueError("timeout should be > 0")
 
-            with pebble.ProcessPool(max_workers=2, max_tasks=1) as pool:
+            with pebble.ProcessPool(max_workers=1, max_tasks=1) as pool:
                 #print(timeout,'timeout length')
                 tasks = pool.schedule(self._run_func, kwargs={
                     'cell_model': cell_model,

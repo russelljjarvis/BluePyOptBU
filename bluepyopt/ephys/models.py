@@ -172,6 +172,7 @@ class ReducedCellModel(VeryReducedModel,
         #attrs.update(copy.copy(param_values))
         dtc = self.model_to_dtc(attrs=all_attrs)
         #self.destroy()
+        #print(all_attrs)
         assert len(dtc.attrs)
         from neuronunit.optimisation.optimization_management import dtc_to_rheo  
 
