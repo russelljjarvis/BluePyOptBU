@@ -23,8 +23,6 @@ matplotlib==3.1.1
 seaborn==0.9.0
 quantities==0.12.4
 Jinja2==2.10.3
-sciunit.egg==info
-scoop==0.7.1.1
 pyNeuroML==0.3.15
 numpy==1.17.2
 Pebble==4.5.3
@@ -35,5 +33,5 @@ pacman==0.0.0
 py2exe==0.9.2.2
 python_dateutil==2.8.1
 scikit_learn==0.23.2
-sciunit==0.2.2.3
-git+https://github.com/russelljjarvis/neuronunit
+git+https://github.com/russelljjarvis/
+git+https://github.com/scidash/sciunit@dev
