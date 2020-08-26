@@ -31,9 +31,11 @@ import os
 import collections
 import string
 
-from . import create_hoc
-from . import morphologies
-
+try:
+    from . import create_hoc
+    from . import morphologies
+except:
+    print("Not trying to support NEURON")
 import logging
 logger = logging.getLogger(__name__)
 
