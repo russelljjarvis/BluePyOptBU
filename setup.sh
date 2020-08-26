@@ -1,4 +1,4 @@
-
+pip install -e .
 mkdir -p ~/.streamlit/
 
 echo "\
