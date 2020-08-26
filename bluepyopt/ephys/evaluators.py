@@ -41,7 +41,8 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
             fitness_calculator=None,
             isolate_protocols=None,
             sim=None,
-            use_params_for_seed=False):
+            use_params_for_seed=False,
+            timeout=None):
         """Constructor
 
         Args:
@@ -61,6 +62,8 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
                 evaluation
             use_params_for_seed (bool): use a hashed version of the parameter
                 dictionary as a seed for the simulator
+            timeout (int): duration in second after which a Process will
+                be interrupted when using multiprocessing
         """
 
         super(CellEvaluator, self).__init__(
@@ -81,6 +84,7 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
         self.fitness_calculator = fitness_calculator
 
         self.isolate_protocols = isolate_protocols
+        self.timeout = timeout
         self.use_params_for_seed = use_params_for_seed
 
     def param_dict(self, param_array):
@@ -137,7 +141,8 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
             param_values,
             isolate=None,
             cell_model=None,
-            sim=None):
+            sim=None,
+            timeout=None):
         """Run protocol"""
 
         sim = self.sim if sim is None else sim
@@ -145,11 +150,23 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
         if self.use_params_for_seed:
             sim.random123_globalindex = self.seed_from_param_dict(param_values)
 
-        return protocol.run(
-            self.cell_model if cell_model is None else cell_model,
-            param_values,
-            sim=sim,
-            isolate=isolate)
+        # Try/except added for backward compatibility
+        try:
+            return protocol.run(
+                self.cell_model if cell_model is None else cell_model,
+                param_values,
+                sim=sim,
+                isolate=isolate,
+                timeout=timeout)
+        except TypeError as e:
+            if "unexpected keyword" in str(e):
+                return protocol.run(
+                    self.cell_model if cell_model is None else cell_model,
+                    param_values,
+                    sim=sim,
+                    isolate=isolate)
+            else:
+                raise
 
     def run_protocols(self, protocols, param_values):
         """Run a set of protocols"""
@@ -160,7 +177,8 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
             responses.update(self.run_protocol(
                 protocol,
                 param_values=param_values,
-                isolate=self.isolate_protocols))
+                isolate=self.isolate_protocols,
+                timeout=self.timeout))
 
         return responses
 
@@ -176,35 +194,41 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
         responses = self.run_protocols(
             self.fitness_protocols.values(),
             param_dict)
-
         return self.fitness_calculator.calculate_scores(responses)
-
+        
     def evaluate_with_lists(self, param_list=None):
         """Run evaluation with lists as input and outputs"""
 
         param_dict = self.param_dict(param_list)
-
         obj_dict = self.evaluate_with_dicts(param_dict=param_dict)
-
         return self.objective_list(obj_dict)
 
     def evaluate(self, param_list=None):
         """Run evaluation with lists as input and outputs"""
-
-        return self.evaluate_with_lists(param_list)
+        if hasattr(self,'NU'):
+            param_dict = self.param_dict(param_list)
+            responses = self.run_protocols(
+            self.fitness_protocols.values(),
+            param_dict)
+            return responses
+        else:
+            return self.evaluate_with_lists(param_list)
 
     def __str__(self):
 
         content = 'cell evaluator:\n'
 
         content += '  cell model:\n'
-        content += '    %s\n' % str(self.cell_model)
+        if self.cell_model is not None:
+            content += '    %s\n' % str(self.cell_model)
 
         content += '  fitness protocols:\n'
-        for fitness_protocol in self.fitness_protocols.values():
-            content += '    %s\n' % str(fitness_protocol)
+        if self.fitness_protocols is not None:
+            for fitness_protocol in self.fitness_protocols.values():
+                content += '    %s\n' % str(fitness_protocol)
 
         content += '  fitness calculator:\n'
-        content += '    %s\n' % str(self.fitness_calculator)
+        if self.fitness_calculator is not None:
+            content += '    %s\n' % str(self.fitness_calculator)
 
         return content

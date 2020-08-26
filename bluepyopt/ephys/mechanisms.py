@@ -72,8 +72,8 @@ class NrnMODMechanism(Mechanism, serializer.DictMixin):
             suffix (str): suffix of this mechanism in the MOD file
             locations (list of Locations): a list of Location objects pointing
                 to where this mechanism should be added to.
-            preloaded (bool): should this mechanism be side-loaded by BluePyOpt,
-                or was it already loaded and compiled by the user ?
+            preloaded (bool): should this mechanism be side-loaded by
+                BluePyOpt, or was it already loaded and compiled by the user ?
                 (not used for the moment)
             prefix (str): Deprecated. Use suffix instead.
         """
@@ -109,9 +109,9 @@ class NrnMODMechanism(Mechanism, serializer.DictMixin):
                     isec,
                     sim)
 
-            logger.debug(
-                'Inserted %s in %s', self.suffix, [
-                    str(location) for location in self.locations])
+        logger.debug(
+            'Inserted %s in %s', self.suffix, [
+                str(location) for location in self.locations])
 
     def instantiate_determinism(self, deterministic, icell, isec, sim):
         """Instantiate enable/disable determinism"""
@@ -186,13 +186,14 @@ class NrnMODMechanism(Mechanism, serializer.DictMixin):
             for location in self.locations:
                 if self.deterministic:
                     reinitrng_hoc_block += \
-                        'forsec %(seclist_name)s { ' \
+                        '    forsec %(seclist_name)s { ' \
                         'deterministic_%(suffix)s = 1 }\n' % {
                             'seclist_name': location.seclist_name,
                             'suffix': self.suffix}
                 else:
                     reinitrng_hoc_block += \
-                        'forsec %(seclist_name)s { %(mech_reinitrng)s }\n' % {
+                        '    forsec %(seclist_name)s {%(mech_reinitrng)s' \
+                        '    }\n' % {
                             'seclist_name': location.seclist_name,
                             'mech_reinitrng':
                             self.mech_reinitrng_block_template % {
@@ -235,22 +236,34 @@ func hash_str() {localobj sf strdef right
 
     reinitrng_hoc_string = """
 proc re_init_rng() {localobj sf
-  strdef full_str, name
+    strdef full_str, name
 
-  sf = new StringFunctions()
+    sf = new StringFunctions()
 
-  %(reinitrng_hoc_blocks)s
+    if(numarg() == 1) {
+        // We received a third seed
+        channel_seed = $1
+        channel_seed_set = 1
+    } else {
+        channel_seed_set = 0
+    }
+
+%(reinitrng_hoc_blocks)s
 }
 """
 
     mech_reinitrng_block_template = """
-            for (x, 0) {
-                setdata_%(suffix)s(x)
-                sf.tail(secname(), "\\\\.", name)
-                sprint(full_str, "%%s.%%.19g", name, x)
-                setRNG_%(suffix)s(0, hash_str(full_str))
+        for (x, 0) {
+            setdata_%(suffix)s(x)
+            sf.tail(secname(), "\\\\.", name)
+            sprint(full_str, "%%s.%%.19g", name, x)
+            if (channel_seed_set) {
+                setRNG_%(suffix)s(gid, hash_str(full_str), channel_seed)
+            } else {
+                setRNG_%(suffix)s(gid, hash_str(full_str))
             }
-        """
+        }
+"""
 
 
 class NrnMODPointProcessMechanism(Mechanism):
@@ -273,8 +286,8 @@ class NrnMODPointProcessMechanism(Mechanism):
             suffix (str): suffix of this mechanism in the MOD file
             locations (list of Locations): a list of Location objects pointing
                 to compartments where this mechanism should be added to.
-            preloaded (bool): should this mechanism be side-loaded by BluePyOpt,
-                or was it already loaded and compiled by the user ?
+            preloaded (bool): should this mechanism be side-loaded by
+                BluePyOpt, or was it already loaded and compiled by the user ?
                 (not used for the moment)
         """
 
@@ -295,12 +308,12 @@ class NrnMODPointProcessMechanism(Mechanism):
             try:
                 iclass = getattr(sim.neuron.h, self.suffix)
                 self.pprocesses.append(iclass(icomp.x, sec=icomp.sec))
-            except ValueError as e:
-                raise ValueError(str(e) + ': ' + self.suffix)
+            except AttributeError as e:
+                raise AttributeError(str(e) + ': ' + self.suffix)
 
-            logger.debug(
-                'Inserted %s at %s ', self.suffix, [
-                    str(location) for location in self.locations])
+        logger.debug(
+            'Inserted %s at %s ', self.suffix, [
+                str(location) for location in self.locations])
 
     def destroy(self, sim=None):
         """Destroy mechanism instantiation"""

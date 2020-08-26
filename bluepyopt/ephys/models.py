@@ -34,11 +34,19 @@ import string
 from . import create_hoc
 from . import morphologies
 
-
 import logging
 logger = logging.getLogger(__name__)
 
 
+from .very_reduced_sans_lems import VeryReducedModel
+import neuronunit.capabilities as cap
+from sciunit.models.runnable import RunnableModel
+from neuronunit.optimisation.data_transport_container import DataTC
+import copy
+
+import bluepyopt.ephys as ephys
+
+import numpy as np
 class Model(object):
 
     """Model"""
@@ -58,8 +66,230 @@ class Model(object):
         """Destroy instantiated model in simulator"""
         pass
 
+import gc
+
+import asciiplotlib as apl
+
+class ReducedCellModel(VeryReducedModel,
+                       RunnableModel,
+                       cap.ReceivesSquareCurrent,
+                       cap.ProducesActionPotentials,
+                       cap.ProducesMembranePotential):
+
+    """Cell model class"""
+
+    def __init__(
+            self,
+            name,
+            params=None,
+            gid=0,
+            backend=None, 
+            tests = None):
+        """Constructor
+
+        Args:
+            name (str): name of this object
+                        should be alphanumeric string, underscores are allowed,
+                        first char should be a letter
+            morph (Morphology):
+                underlying Morphology of the cell
+            mechs (list of Mechanisms):
+                Mechanisms associated with the cell
+            params (list of Parameters):
+                Parameters of the cell model
+            backend a NeuronUnit model backend/model simulator combination
+            tests: NeuronUnit test suite used to extract features.
+        """
+        #super(CellModel, self).__init__(name)
+        super(VeryReducedModel, self).__init__(name=name,backend=backend)
+        
+        #super(VeryReducedModel, self).__init__(name=name,backend=backend, attrs=attrs)
+        self.backend = backend
+        #self._backend = str('')
+        self.attrs = {}
+        self.run_number = 0
+        self.tstop = None
+        self.rheobse = None
+        self.check_name()
+        self.params = collections.OrderedDict(**params)
+        self.tests = tests
+
+        # Cell instantiation in simulator
+        self.icell = None
+        self.param_values = None
+        self.gid = gid
+        self.NU = True
+
+    def model_to_dtc(self,attrs=None):
+        """
+        Args:
+            self
+        Returns: 
+            dtc
+            DTC is a simulator indipendent data transport container object.
+        """
+            
+        dtc = DataTC(backend=self.backend)
+        if hasattr(self,'tests'):
+            if type(self.tests) is not type(None):
+                dtc.tests = self.tests
+
+        if type(attrs) is not type(None):
+            if len(attrs):
+                dtc.attrs = attrs
+                self.attrs = attrs
+            assert self._backend is not None
+            return dtc
+        else:
+            if type(self.attrs) is not type(None):
+                if len(self.attrs):
+                    try:
+                        dynamic_attrs = {str(k):float(v) for k,v in self.attrs.items()}
+                    except:
+                        dynamic_attrs = {str(k):float(v.value) for k,v in self.attrs.items()}
+
+        if self._backend is None:
+            super(VeryReducedModel, self).__init__(name=self.name,backend=self.backend)#,attrs=dtc.attrs)
+            assert self._backend is not None
+        frozen_attrs = self._backend.default_attrs
+        if 'dynamic_attrs' in locals():
+            frozen_attrs.update(dynamic_attrs)
+        all_attrs = frozen_attrs
+        dtc.attrs = all_attrs
+        assert dtc.attrs is not None
+        return dtc
+
+    def inject_model(self,
+                     DELAY=100,
+                     DURATION=500): 
+        dynamic_attrs = {str(k):float(v) for k,v in self.params.items()}
+        #assert len(dynamic_attrs)
+        frozen_attrs = self._backend.default_attrs
+
+        frozen_attrs.update(dynamic_attrs)
+        all_attrs = frozen_attrs
+        #attrs = copy.copy(dfa)
+        #attrs.update(copy.copy(param_values))
+        dtc = self.model_to_dtc(attrs=all_attrs)
+        #self.destroy()
+        assert len(dtc.attrs)
+        from neuronunit.optimisation.optimization_management import dtc_to_rheo  
+
+        dtc = dtc_to_rheo(dtc)
+
+        #super(VeryReducedModel, self).__init__(name=name,backend=backend)
+
+        self.rheobase = dtc.rheobase
+            
+            
+        vm = [np.nan]
+        if self.rheobase is not None:
+            uc = {'amplitude':self.rheobase,'duration':DURATION,'delay':DELAY}
+            self._backend.attrs = all_attrs
+            try:
+                self._backend.inject_square_current(uc)
+                vm = self.get_membrane_potential()
+                self.vm = vm
+            except:
+                vm = [np.nan]
+                #print('frozne',frozen_attrs,'dyn',dynamic_attrs,'self',self.attrs)            
+        else:
+            self.vm = vm
+        return vm    
+
+    def check_name(self):
+        """Check if name complies with requirements"""
+
+        allowed_chars = string.ascii_letters + string.digits + '_'
+
+        if sys.version_info[0] < 3:
+            translate_args = [None, allowed_chars]
+        else:
+            translate_args = [str.maketrans('', '', allowed_chars)]
+
+        if self.name == '' \
+                or self.name[0] not in string.ascii_letters \
+                or not str(self.name).translate(*translate_args) == '':
+            raise TypeError(
+                'CellModel: name "%s" provided to constructor does not comply '
+                'with the rules for Neuron template name: name should be '
+                'alphanumeric '
+                'non-empty string, underscores are allowed, '
+                'first char should be letter' % self.name)
+
+    def params_by_names(self, param_names):
+        """Get parameter objects by name"""
+
+        return [self.params[param_name] for param_name in param_names]
+
+    def freeze(self, param_dict):
+        """Set params"""
+
+        for param_name, param_value in param_dict.items():
+            self.params[param_name].freeze(param_value)
+
+    def unfreeze(self, param_names):
+        """Unset params"""
+
+        for param_name in param_names:
+            self.params[param_name].unfreeze()
+
+    def instantiate(self, sim=None):
+        """
+        Instantiate model in simulator
+        As if called from a genetic algorithm.
+        """
+        #self.icell.gid = self.gid
+        if self.params is not None:
+            self.attrs = self.params
+
+        dtc = self.model_to_dtc()
+        for k,v in self.params.items():
+            v = float(v.value)
+            dtc.attrs[k] = v
+            self.attrs[k] = v
+        return dtc
+
+            #for param in self.params.values():
+            #    model.attrs[param] = 
+                #param.instantiate(sim=sim, icell=self.icell)
+    def destroy(self, sim=None):  # pylint: disable=W0613
+        """Destroy instantiated model in simulator"""
+
+        # Make sure the icell's destroy() method is called
+        # without it a circular reference exists between CellRef and the object
+        # this prevents the icells from being garbage collected, and
+        # cell objects pile up in the simulator
+        self.icell.destroy()
+
+        # The line below is some M. Hines magic
+        # DON'T remove it, because it will make sure garbage collection
+
+        del self.icell# = None
+        for param in self.params.values():
+            param.destroy(sim=sim)
+            print('destroyed param')
+
+    def check_nonfrozen_params(self, param_names):  # pylint: disable=W0613
+        """Check if all nonfrozen params are set"""
+        for param_name, param in self.params.items():
+            if not param.frozen:
+                raise Exception(
+                    'CellModel: Nonfrozen param %s needs to be '
+                    'set before simulation' %
+                    param_name)
+
+
+
+
+from sciunit.models import Model as SciUnitModel
+from neuronunit.models.static import ExternalModel 
+import quantities as pq
 
 class CellModel(Model):
+                #cap.ReceivesSquareCurrent,
+                #cap.ProducesActionPotentials,
+                #cap.ProducesMembranePotential):
 
     """Cell model class"""
 
@@ -138,6 +368,37 @@ class CellModel(Model):
 
         for param_name in param_names:
             self.params[param_name].unfreeze()
+
+    def inject_square_current(self,current):
+        import l5pc_evaluator
+
+        sweep_protocols = []
+        fitness_protocols = l5pc_evaluator.define_protocols()
+        protocol = fitness_protocols['Step3']
+        if 'injected_square_current' in current.keys():
+            current = current['injected_square_current']
+        protocol.stimuli[0].step_amplitude = float(current['amplitude'])
+        protocol.stimuli[0].step_delay = float(current['delay'])
+        protocol.stimuli[0].step_duration = float(current['duration'])
+        #protocol.stimuli[0].
+        total_duration = float(current['delay']) + \
+                        float(current['duration']) \
+                        + 200       
+        protocol.stimuli[0].total_duration = total_duration          
+        fitness_calculator = l5pc_evaluator.define_fitness_calculator(fitness_protocols)
+        param_names = [param for param in self.params.keys()]
+
+        sim = ephys.simulators.NrnSimulator()
+        evalu = ephys.evaluators.CellEvaluator(
+            cell_model=self,
+            param_names=param_names,
+            fitness_protocols=fitness_protocols,
+            fitness_calculator=fitness_calculator,
+            sim=sim)
+        response = evalu.run_protocol(evalu.fitness_protocols['Step3'],evalu.params)   
+
+        return response
+        
 
     @staticmethod
     def create_empty_template(
@@ -222,10 +483,13 @@ class CellModel(Model):
 
         self.morphology.instantiate(sim=sim, icell=self.icell)
 
-        for mechanism in self.mechanisms:
-            mechanism.instantiate(sim=sim, icell=self.icell)
-        for param in self.params.values():
-            param.instantiate(sim=sim, icell=self.icell)
+        if self.mechanisms is not None:
+            for mechanism in self.mechanisms:
+                mechanism.instantiate(sim=sim, icell=self.icell)
+
+        if self.params is not None:
+            for param in self.params.values():
+                param.instantiate(sim=sim, icell=self.icell)
 
     def destroy(self, sim=None):  # pylint: disable=W0613
         """Destroy instantiated model in simulator"""
@@ -261,7 +525,8 @@ class CellModel(Model):
 
     def create_hoc(self, param_values,
                    ignored_globals=(), template='cell_template.jinja2',
-                   disable_banner=False):
+                   disable_banner=False,
+                   template_dir=None):
         """Create hoc code for this model"""
 
         to_unfreeze = []
@@ -277,13 +542,30 @@ class CellModel(Model):
         else:
             replace_axon = None
 
+        if (
+            self.morphology.morph_modifiers is not None
+            and self.morphology.morph_modifiers_hoc is None
+        ):
+            logger.warning('You have provided custom morphology modifiers, \
+                            but no corresponding hoc files.')
+        elif (
+            self.morphology.morph_modifiers is not None
+            and self.morphology.morph_modifiers_hoc is not None
+        ):
+            if replace_axon is None:
+                replace_axon = ''
+            for morph_modifier_hoc in self.morphology.morph_modifiers_hoc:
+                replace_axon += '\n'
+                replace_axon += morph_modifier_hoc
+
         ret = create_hoc.create_hoc(mechs=self.mechanisms,
                                     parameters=self.params.values(),
                                     morphology=morphology,
                                     ignored_globals=ignored_globals,
                                     replace_axon=replace_axon,
                                     template_name=template_name,
-                                    template=template,
+                                    template_filename=template,
+                                    template_dir=template_dir,
                                     disable_banner=disable_banner)
 
         self.unfreeze(to_unfreeze)
@@ -296,14 +578,19 @@ class CellModel(Model):
         content = '%s:\n' % self.name
 
         content += '  morphology:\n'
-        content += '    %s\n' % str(self.morphology)
+
+        if self.morphology is not None:
+            content += '    %s\n' % str(self.morphology)
 
         content += '  mechanisms:\n'
-        for mechanism in self.mechanisms:
-            content += '    %s\n' % mechanism
+        if self.mechanisms is not None:
+            for mechanism in self.mechanisms:
+                content += '    %s\n' % mechanism
+
         content += '  params:\n'
-        for param in self.params.values():
-            content += '    %s\n' % param
+        if self.params is not None:
+            for param in self.params.values():
+                content += '    %s\n' % param
 
         return content
 
@@ -435,3 +722,30 @@ class HocCellModel(CellModel):
                 'NEURON does not have template: ' + template_name
 
         return template_name
+
+class NU_HocCellModel(HocCellModel,RunnableModel,
+                       cap.ReceivesSquareCurrent,
+                       cap.ProducesActionPotentials,
+                       cap.ProducesMembranePotential):
+
+    def __init__(self, name, morphology_path, hoc_path=None, hoc_string=None):
+        """Constructor
+
+        Args:
+            name(str): name of this object
+            sim(NrnSimulator): simulator in which to instatiate hoc_string
+            hoc_path(str): Path to a hoc file
+                (hoc_path and hoc_string can't be used simultaneously,
+                but one of them has to specified)
+            hoc_string(str): String that of hoc code that defines a template
+                (hoc_path and hoc_string can't be used simultaneously,
+                but one of them has to specified))
+            morphology_path(str path): path to morphology that can be loaded by
+                                    Neuron
+        """
+        super(NU_HocCellModel, self).__init__(name,
+                                        morph=None,
+                                        mechs=[],
+                                        params=[])
+        self.NU = True
+

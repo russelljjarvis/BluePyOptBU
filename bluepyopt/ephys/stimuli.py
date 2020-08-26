@@ -43,7 +43,7 @@ class NrnCurrentPlayStimulus(Stimulus):
 
         Args:
             time_points(): time series (ms)
-            current_points(): current series of injected current amplitudes (nA)
+            current_points(): current series of injected current amplitudes(nA)
             location(Location): location of stimulus
         """
 
@@ -131,6 +131,7 @@ class NrnNetStimStimulus(Stimulus):
         """Run stimulus"""
 
         for location in self.locations:
+            self.connections[location.name] = []
             for synapse in location.instantiate(sim=sim, icell=icell):
                 netstim = sim.neuron.h.NetStim()
                 netstim.interval = self.interval
@@ -140,7 +141,7 @@ class NrnNetStimStimulus(Stimulus):
                 netcon = sim.neuron.h.NetCon(netstim, synapse)
                 netcon.weight[0] = self.weight
 
-                self.connections[location.name] = (netcon, netstim)
+                self.connections[location.name].append((netcon, netstim))
 
     def destroy(self, sim=None):
         """Destroy stimulus"""
@@ -152,7 +153,8 @@ class NrnNetStimStimulus(Stimulus):
 
         return "Netstim at %s" % ','.join(
             location
-            for location in self.locations)
+            for location in self.locations) \
+            if self.locations is not None else "Netstim"
 
 # TODO Add 'current' to the name
 

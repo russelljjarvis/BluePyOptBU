@@ -1,7 +1,9 @@
 """Test l5pc example"""
 
+import json
 import os
 import sys
+
 from contextlib import contextmanager
 if sys.version_info[0] < 3:
     from StringIO import StringIO
@@ -13,6 +15,7 @@ from nose.plugins.attrib import attr
 
 L5PC_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                          '../../examples/l5pc'))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.insert(0, L5PC_PATH)
 
@@ -55,16 +58,12 @@ release_parameters = {
 def load_from_json(filename):
     """Load structure from json"""
 
-    import json
-
     with open(filename) as json_file:
         return json.load(json_file)
 
 
 def dump_to_json(content, filename):
     """Dump structure to json"""
-
-    import json
 
     with open(filename, 'w') as json_file:
         return json.dump(content, json_file, indent=4, separators=(',', ': '))
@@ -76,9 +75,6 @@ def test_import():
     import l5pc_model  # NOQA
     import l5pc_evaluator  # NOQA
     import opt_l5pc  # NOQA
-
-    # Delete the optimisation inside the module
-    del opt_l5pc.opt
 
 
 class TestL5PCModel(object):
@@ -135,7 +131,8 @@ class TestL5PCEvaluator(object):
         result = self.l5pc_evaluator.evaluate_with_dicts(
             param_dict=release_parameters)
 
-        expected_results = load_from_json('expected_results.json')
+        expected_results = load_from_json(
+            os.path.join(SCRIPT_DIR, 'expected_results.json'))
 
         # Use two lines below to update expected result
         # expected_results['TestL5PCEvaluator.test_eval'] = result
@@ -170,6 +167,8 @@ def stdout_redirector(stream):
 @attr('slow')
 def test_exec():
     """L5PC Notebook: test execution"""
+    import numpy
+    numpy.seterr(all='raise')
     old_cwd = os.getcwd()
     output = StringIO()
     try:

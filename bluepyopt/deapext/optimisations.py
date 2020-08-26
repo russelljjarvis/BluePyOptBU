@@ -35,10 +35,11 @@ from . import algorithms
 from . import tools
 
 import bluepyopt.optimisations
-
+import copyreg
+import types
 logger = logging.getLogger('__main__')
 
-# TODO decide which variables go in constructor, which ones go in 'run' function
+# TODO decide which variables go in constructor,which ones go in 'run' function
 # TODO abstract the algorithm by creating a class for every algorithm, that way
 # settings of the algorithm can be stored in objects of these classes
 
@@ -100,8 +101,25 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                  mutpb=1.0,
                  cxpb=1.0,
                  map_function=None,
-                 hof=None):
-        """Constructor"""
+                 hof=None,
+                 selector_name=None):
+        """Constructor
+
+        Args:
+            evaluator (Evaluator): Evaluator object
+            seed (float): Random number generator seed
+            offspring_size (int): Number of offspring individuals in each
+                generation
+            eta (float): Parameter that controls how far the crossover and
+            mutation operator disturbe the original individuals
+            mutpb (float): Mutation probability
+            cxpb (float): Crossover probability
+            map_function (function): Function used to map (parallelise) the
+                evaluation function calls
+            hof (hof): Hall of Fame object
+            selector_name (str): The selector used in the evolutionary
+                algorithm, possible values are 'IBEA' or 'NSGA2'
+        """
 
         super(DEAPOptimisation, self).__init__(evaluator=evaluator)
 
@@ -112,8 +130,12 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.cxpb = cxpb
         self.mutpb = mutpb
         self.map_function = map_function
-        self.hof = hof
 
+        self.selector_name = selector_name
+        if self.selector_name is None:
+            self.selector_name = 'IBEA'
+
+        self.hof = hof
         if self.hof is None:
             self.hof = deap.tools.HallOfFame(10)
 
@@ -204,13 +226,17 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         self.toolbox.register("variate", deap.algorithms.varAnd)
 
         # Register the selector (picks parents from population)
-        self.toolbox.register("select", tools.selIBEA)
-
+        if self.selector_name == 'IBEA':
+            self.toolbox.register("select", tools.selIBEA)
+        elif self.selector_name == 'NSGA2':
+            self.toolbox.register("select", deap.tools.emo.selNSGA2)
+        else:
+            raise ValueError('DEAPOptimisation: Constructor selector_name '
+                             'argument only accepts "IBEA" or "NSGA2"')
         def _reduce_method(meth):
             """Overwrite reduce"""
             return (getattr, (meth.__self__, meth.__func__.__name__))
-        import copyreg
-        import types
+
         copyreg.pickle(types.MethodType, _reduce_method)
 
         if self.use_scoop:
@@ -234,7 +260,8 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             cp_frequency=1):
         """Run optimisation"""
         # Allow run function to override offspring_size
-        # TODO probably in the future this should not be an object field anymore
+        # TODO probably in the future this should not be an object field
+        # anymore
         # keeping for backward compatibility
         if offspring_size is None:
             offspring_size = self.offspring_size
@@ -249,7 +276,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         stats.register("min", numpy.min)
         stats.register("max", numpy.max)
 
-        pop, log, history = algorithms.eaAlphaMuPlusLambdaCheckpoint(
+        pop, hof, log, history = algorithms.eaAlphaMuPlusLambdaCheckpoint(
             pop,
             self.toolbox,
             offspring_size,
@@ -261,6 +288,9 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             cp_frequency=cp_frequency,
             continue_cp=continue_cp,
             cp_filename=cp_filename)
+
+        # Update hall of fame
+        self.hof = hof
 
         return pop, self.hof, log, history
 

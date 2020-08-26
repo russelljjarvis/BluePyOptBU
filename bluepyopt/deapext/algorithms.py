@@ -29,16 +29,25 @@ import deap.algorithms
 import deap.tools
 import pickle
 
+from tqdm.auto import tqdm
+
+from .stoppingCriteria import MaxNGen
+
 logger = logging.getLogger('__main__')
-
-
+DASK = False
+import dask
 def _evaluate_invalid_fitness(toolbox, population):
     '''Evaluate the individuals with an invalid fitness
 
     Returns the count of individuals with invalid fitness
     '''
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
-    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+    eval_ = toolbox.evaluate
+    #lazy = dask.delayed((eval_)(ind) for ind in invalid_ind)            
+    #try:
+    #    fitnesses = list(dask.compute(lazy))
+    #except:
+    fitnesses = toolbox.map(eval_, invalid_ind)
     for ind, fit in zip(invalid_ind, fitnesses):
         ind.fitness.values = fit
 
@@ -69,6 +78,17 @@ def _get_offspring(parents, toolbox, cxpb, mutpb):
     return deap.algorithms.varAnd(parents, toolbox, cxpb, mutpb)
 
 
+def _check_stopping_criteria(criteria, params):
+    for c in criteria:
+        c.check(params)
+        if c.criteria_met:
+            logger.info('Run stopped because of stopping criteria: ' +
+                        c.name)
+            return True
+    else:
+        return False
+
+import numpy as np
 def eaAlphaMuPlusLambdaCheckpoint(
         population,
         toolbox,
@@ -80,7 +100,9 @@ def eaAlphaMuPlusLambdaCheckpoint(
         halloffame=None,
         cp_frequency=1,
         cp_filename=None,
-        continue_cp=False):
+        continue_cp=False,
+        extra=None,
+        ELITISM=True):
     r"""This is the :math:`(~\alpha,\mu~,~\lambda)` evolutionary algorithm
 
     Args:
@@ -99,7 +121,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
     if continue_cp:
         # A file name has been given, then load the data from the file
-        cp = pickle.load(open(cp_filename, "r"))
+        cp = pickle.load(open(cp_filename, "rb"))
         population = cp["population"]
         parents = cp["parents"]
         start_gen = cp["generation"]
@@ -118,25 +140,43 @@ def eaAlphaMuPlusLambdaCheckpoint(
         # TODO this first loop should be not be repeated !
         invalid_count = _evaluate_invalid_fitness(toolbox, population)
         _update_history_and_hof(halloffame, history, population)
+        
         _record_stats(stats, logbook, start_gen, population, invalid_count)
+        logger.info(logbook.stream)
+
+
+    stopping_criteria = [MaxNGen(ngen)]
 
     # Begin the generational process
-    for gen in range(start_gen + 1, ngen + 1):
+    gen = start_gen + 1
+    stopping_params = {"gen": gen}
+
+    pbar = tqdm(total=ngen)
+    while not(_check_stopping_criteria(stopping_criteria, stopping_params)):
+        
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
 
         population = parents + offspring
-
+        if ELITISM:
+            population.append(halloffame[0])
+        flo = np.sum(halloffame[0].fitness.values)
+        stopping_params.update({'hof':flo})
+        stop = _check_stopping_criteria(stopping_criteria, stopping_params)
+        
+        #print(flo,np.sum(halloffame[0].fitness.values),'inside')
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
+        
         _update_history_and_hof(halloffame, history, population)
         _record_stats(stats, logbook, gen, population, invalid_count)
 
         # Select the next generation parents
         parents = toolbox.select(population, mu)
-
+        if ELITISM:
+            parents.append(halloffame[0])
         logger.info(logbook.stream)
 
         if(cp_filename and cp_frequency and
-           gen % cp_frequency == 0):
+           gen % cp_frequency == 0 or cp_filename and stop):
             cp = dict(population=population,
                       generation=gen,
                       parents=parents,
@@ -147,4 +187,19 @@ def eaAlphaMuPlusLambdaCheckpoint(
             pickle.dump(cp, open(cp_filename, "wb"))
             logger.debug('Wrote checkpoint to %s', cp_filename)
 
-    return population, logbook, history
+        gen += 1
+        stopping_params["gen"] = gen
+        pbar.update(1)
+    pbar.update(1)
+    pbar.close()
+    cp = dict(population=population,
+            generation=gen,
+            parents=parents,
+            halloffame=halloffame,
+            history=history,
+            logbook=logbook,
+            rndstate=random.getstate())
+    #with open('out_file.p', "wb") as f:
+    #    pickle.dump(cp, f)
+
+    return population, halloffame, logbook, history

@@ -59,7 +59,6 @@ def define_protocols():
             protocol_name,
             location=soma_loc,
             variable='v')
-
         recordings = [somav_recording]
 
         if 'extra_recordings' in protocol_definition:
@@ -74,7 +73,6 @@ def define_protocols():
                         name='%s.%s.%s' % (protocol_name, location.name, var),
                         location=location,
                         variable=recording_definition['var'])
-
                     recordings.append(recording)
                 else:
                     raise Exception(

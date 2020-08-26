@@ -39,6 +39,92 @@ def test_stimulus_init():
 
 
 @attr('unit')
+def test_NrnNetStimStimulus_init():
+    """ephys.stimuli: test if NrnNetStimStimulus constructor works"""
+
+    nt.assert_raises(ValueError, ephys.stimuli.NrnNetStimStimulus)
+
+    stim = ephys.stimuli.NrnNetStimStimulus(total_duration=100)
+    nt.assert_is_instance(stim, ephys.stimuli.NrnNetStimStimulus)
+
+    nt.assert_equal(str(stim), 'Netstim')
+
+
+@attr('unit')
+def test_NrnNetStimStimulus_instantiate():
+    """ephys.stimuli: test if NrnNetStimStimulus instantiate works"""
+
+    nrn_sim = ephys.simulators.NrnSimulator()
+    dummy_cell = testmodels.dummycells.DummyCellModel1()
+    icell = dummy_cell.instantiate(sim=nrn_sim)
+
+    somacenter_loc = ephys.locations.NrnSeclistCompLocation(
+        name=None,
+        seclist_name='somatic',
+        sec_index=0,
+        comp_x=.5)
+
+    expsyn_mech = ephys.mechanisms.NrnMODPointProcessMechanism(
+        name='expsyn',
+        suffix='ExpSyn',
+        locations=[somacenter_loc])
+
+    expsyn_mech.instantiate(sim=nrn_sim, icell=icell)
+
+    expsyn_loc = ephys.locations.NrnPointProcessLocation(
+        'expsyn_loc',
+        pprocess_mech=expsyn_mech)
+
+    netstim = ephys.stimuli.NrnNetStimStimulus(
+        total_duration=200,
+        number=5,
+        interval=5,
+        start=20,
+        weight=5e-4,
+        locations=[expsyn_loc])
+
+    netstim.instantiate(sim=nrn_sim, icell=icell)
+
+    nrn_sim.run(netstim.total_duration)
+
+    expsyn_mech.destroy(sim=nrn_sim)
+    netstim.destroy(sim=nrn_sim)
+    dummy_cell.destroy(sim=nrn_sim)
+
+
+@attr('unit')
+def test_NrnCurrentPlayStimulus_instantiate():
+    """ephys.stimuli: test if NrnNetStimStimulus instantiate works"""
+
+    nrn_sim = ephys.simulators.NrnSimulator()
+    dummy_cell = testmodels.dummycells.DummyCellModel1()
+    icell = dummy_cell.instantiate(sim=nrn_sim)
+
+    somacenter_loc = ephys.locations.NrnSeclistCompLocation(
+        name=None,
+        seclist_name='somatic',
+        sec_index=0,
+        comp_x=.5)
+
+    time_points = [10, 50]
+    current_points = [0.1, 0.2]
+    current_stim = ephys.stimuli.NrnCurrentPlayStimulus(
+        time_points=time_points,
+        current_points=current_points,
+        location=somacenter_loc)
+
+    nt.assert_equal(current_stim.time_points, time_points)
+    nt.assert_equal(current_stim.current_points, current_points)
+    nt.assert_equal(str(current_stim), 'Current play at somatic[0](0.5)')
+    current_stim.instantiate(sim=nrn_sim, icell=icell)
+
+    nrn_sim.run(100)
+
+    current_stim.destroy(sim=nrn_sim)
+    dummy_cell.destroy(sim=nrn_sim)
+
+
+@attr('unit')
 def test_NrnRampPulse_init():
     """ephys.stimuli: test if NrnRampPulse constructor works"""
     stim = ephys.stimuli.NrnRampPulse()
@@ -46,7 +132,6 @@ def test_NrnRampPulse_init():
 
 
 @attr('unit')
-@attr('stimuli')
 def test_NrnRampPulse_instantiate():
     """ephys.stimuli: test if NrnRampPulse injects correct current"""
 
@@ -75,6 +160,12 @@ def test_NrnRampPulse_instantiate():
         ramp_duration=ramp_duration,
         total_duration=total_duration,
         location=soma_loc)
+
+    nt.assert_equal(
+        str(stim),
+        'Ramp pulse amp_start 0.100000 amp_end 1.000000 '
+        'delay 20.000000 duration 20.000000 totdur 50.000000'
+        ' at somatic[0](0.5)')
     stim.instantiate(sim=nrn_sim, icell=icell)
 
     recording.instantiate(sim=nrn_sim, icell=icell)
@@ -119,7 +210,6 @@ def test_NrnRampPulse_instantiate():
             numpy.where(
                 (ramp_delay + ramp_duration < time)
                 & (time <= total_duration))]), -57.994437612124869)
-
     recording.destroy(sim=nrn_sim)
     stim.destroy(sim=nrn_sim)
     dummy_cell.destroy(sim=nrn_sim)

@@ -21,8 +21,6 @@ Copyright (c) 2016, EPFL/Blue Brain Project
 
 # pylint: disable=W0511
 
-from abc import abstractmethod
-
 import logging
 
 import bluepyopt
@@ -52,7 +50,6 @@ class NrnParameter(bluepyopt.parameters.Parameter):
             frozen=frozen,
             bounds=bounds)
 
-    @abstractmethod
     def instantiate(self, sim=None, icell=None):
         """Instantiate the parameter in the simulator"""
         pass
@@ -60,6 +57,62 @@ class NrnParameter(bluepyopt.parameters.Parameter):
     def destroy(self, sim=None):
         """Remove parameter from the simulator"""
         pass
+
+
+class MetaParameter(NrnParameter):
+
+    """Parameter class that controls attributes of other objects"""
+
+    def __init__(
+            self,
+            name,
+            obj=None,
+            attr_name=None,
+            value=None,
+            frozen=False,
+            bounds=None):
+        """Constructor"""
+
+        super(MetaParameter, self).__init__(
+            name,
+            value=value,
+            frozen=frozen,
+            bounds=bounds)
+
+        self.obj = obj
+        self.attr_name = attr_name
+        setattr(self.obj, self.attr_name, value)
+
+    @bluepyopt.parameters.Parameter.value.setter
+    def value(self, _value):
+        """Setter for value"""
+        # Call setter of superclass
+        super(MetaParameter, self.__class__).value.fset(self, _value)
+        setattr(self.obj, self.attr_name, _value)
+
+    def __str__(self):
+        """String representation"""
+        return '%s: %s.%s = %s' % (self.name,
+                                   self.obj.name,
+                                   self.attr_name,
+                                   self.value)
+
+
+class NrnMetaListEqualParameter(bluepyopt.parameters.MetaListEqualParameter):
+    """Nrn version of MetaListEqualParameter, implements instantiate"""
+
+    def instantiate(self, sim=None, icell=None):
+        """Instantiate"""
+
+        for sub_parameter in self.sub_parameters:
+            sub_parameter.instantiate(sim=sim, icell=icell)
+
+        logger.debug('Set %s to %s', self.name, str(self.value))
+
+    def destroy(self, sim=None):
+        """Remove parameter from the simulator"""
+        for sub_parameter in self.sub_parameters:
+            sub_parameter.destroy(sim=sim)
 
 
 class NrnGlobalParameter(NrnParameter, DictMixin):
@@ -157,8 +210,9 @@ class NrnSectionParameter(NrnParameter, DictMixin):
         """Instantiate"""
         if self.value is None:
             raise Exception(
-                'NrnSectionParameter: impossible to instantiate parameter "%s" '
-                'without value' % self.name)
+                'NrnSectionParameter: impossible to instantiate parameter "%s"'
+                ' without value' %
+                self.name)
 
         for location in self.locations:
             iseclist = location.instantiate(sim=sim, icell=icell)
@@ -221,8 +275,9 @@ class NrnPointProcessParameter(NrnParameter, DictMixin):
         """Instantiate"""
         if self.value is None:
             raise Exception(
-                'NrnSectionParameter: impossible to instantiate parameter "%s" '
-                'without value' % self.name)
+                'NrnSectionParameter: impossible to instantiate parameter "%s"'
+                ' without value' %
+                self.name)
 
         for location in self.locations:
             for pprocess in location.instantiate(sim=sim, icell=icell):

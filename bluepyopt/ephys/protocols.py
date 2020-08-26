@@ -28,6 +28,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 from . import locations
+from . import simulators
+import copy
+from neo import AnalogSignal
+import quantities as pq
+import neuronunit.capabilities.spike_functions as sf
 
 
 class Protocol(object):
@@ -59,18 +64,46 @@ class SequenceProtocol(Protocol):
         super(SequenceProtocol, self).__init__(name)
         self.protocols = protocols
 
-    def run(self, cell_model, param_values, sim=None, isolate=None):
+    def run(
+            self,
+            cell_model,
+            param_values,
+            sim=None,
+            isolate=None,
+            timeout=None):
         """Instantiate protocol"""
 
         responses = collections.OrderedDict({})
 
         for protocol in self.protocols:
-            responses.update(
-                protocol.run(
+
+            # Try/except added for backward compatibility
+            try:
+                response = protocol.run(
                     cell_model=cell_model,
                     param_values=param_values,
                     sim=sim,
-                    isolate=isolate))
+                    isolate=isolate,
+                    timeout=timeout)
+            except TypeError as e:
+                if "unexpected keyword" in str(e):
+                    response = protocol.run(
+                        cell_model=cell_model,
+                        param_values=param_values,
+                        sim=sim,
+                        isolate=isolate)
+                else:
+                    raise
+
+            key_intersect = set(
+                response.keys()).intersection(set(responses.keys()))
+            if len(key_intersect) != 0:
+                raise Exception(
+                    'SequenceProtocol: one of the protocols (%s) is trying to '
+                    'add already existing keys to the response: %s' %
+                    (protocol.name, key_intersect))
+
+            responses.update(response)
 
         return responses
 
@@ -84,6 +117,16 @@ class SequenceProtocol(Protocol):
 
         return subprotocols
 
+    def __str__(self):
+        """String representation"""
+
+        content = 'Sequence protocol %s:\n' % self.name
+
+        content += '%d subprotocols:\n' % len(self.protocols)
+        for protocol in self.protocols:
+            content += '%s\n' % str(protocol)
+
+        return content
 
 class SweepProtocol(Protocol):
 
@@ -127,15 +170,64 @@ class SweepProtocol(Protocol):
         try:
             cell_model.freeze(param_values)
             cell_model.instantiate(sim=sim)
-
-            self.instantiate(sim=sim, icell=cell_model.icell)
-
             try:
-                sim.run(self.total_duration, cvode_active=self.cvode_active)
-            except RuntimeError:
+                self.instantiate(sim=sim, icell=cell_model.icell)
+            except:
+                pass
+            try:
+                ##
+                # The defualt NEURON SIM RUN
+                ##
+                if not hasattr(cell_model,'NU'):
+                    sim.run(self.total_duration, cvode_active=self.cvode_active)
+                
+
+                else:
+                    '''
+                    if False:
+                        # Faster way to achieve same thing
+                        if cell_model.tests is not None:
+                            dtc = cell_model.model_to_dtc()
+                            scores = dtc.self_evaluate()
+                            responses = {'name':'rheobase_inj',
+                                        'model':cell_model.model_to_dtc(),
+                                        'rheobase':cell_model.rheobase,
+                                        'params':param_values,
+                                        'scores':scores}
+                    '''
+                    # first populate the dtc by frozen default attributes
+                    # then update with dynamic gene attributes as appropriate.
+                    attrs = cell_model._backend.default_attrs
+                    #attrs = copy.copy(dfa)
+                    attrs.update(copy.copy(param_values))
+                    #print(attrs,param_values, 'gets here \n\n\n\')
+                    assert attrs is not None
+                    assert len(param_values)
+                    dtc = cell_model.model_to_dtc(attrs=attrs) 
+                    #copy.copy(param_values)
+                    
+                    if hasattr(cell_model,'allen'):
+  
+                        #
+                        from neuronunit.optimisation.optimization_management import three_step_protocol
+
+                        dtc = three_step_protocol(dtc)   
+                        vm = cell_model.inject_model()
+                        if hasattr(dtc,'everything'):
+                            responses = {'features':dtc.everything,'name':'rheobase_inj','dtc':dtc,'model':cell_model,'rheobase':cell_model.rheobase,'params':param_values}
+                        else:
+                            responses = {'name':'rheobase_inj','model':dtc,'rheobase':cell_model.rheobase,'params':param_values}
+                    else:
+                        vm = cell_model.inject_model()
+                        responses = {'name':'rheobase_inj','response':vm,'model':dtc,'rheobase':cell_model.rheobase,'params':param_values}
+
+                    return responses
+
+
+            except (RuntimeError, simulators.NrnSimulatorException):
                 logger.debug(
                     'SweepProtocol: Running of parameter set {%s} generated '
-                    'RuntimeError, returning None in responses',
+                    'an exception, returning None in responses',
                     str(param_values))
                 responses = {recording.name:
                              None for recording in self.recordings}
@@ -149,22 +241,36 @@ class SweepProtocol(Protocol):
             cell_model.destroy(sim=sim)
 
             cell_model.unfreeze(param_values.keys())
-
             return responses
-        except:
+        except BaseException:
             import sys
             import traceback
             raise Exception(
                 "".join(
                     traceback.format_exception(*sys.exc_info())))
 
-    def run(self, cell_model, param_values, sim=None, isolate=None):
+    def run(
+            self,
+            cell_model,
+            param_values,
+            sim=None,
+            isolate=None,
+            timeout=None):
         """Instantiate protocol"""
 
         if isolate is None:
             isolate = True
+        '''    
+        def _reduce_method(meth):
+            """Overwrite reduce"""
+            return (getattr, (meth.__self__, meth.__func__.__name__))
 
-        if isolate:
+        import copyreg
+        import types
+        copyreg.pickle(types.MethodType, _reduce_method)
+        '''
+        if isolate and not cell_model.name in 'L5PC':
+            
             def _reduce_method(meth):
                 """Overwrite reduce"""
                 return (getattr, (meth.__self__, meth.__func__.__name__))
@@ -172,26 +278,51 @@ class SweepProtocol(Protocol):
             import copyreg
             import types
             copyreg.pickle(types.MethodType, _reduce_method)
+            
+            import pebble
+            from concurrent.futures import TimeoutError
+            
+            if timeout is not None:
+                if timeout < 0:
+                    raise ValueError("timeout should be > 0")
 
-            import multiprocessing
-
-            pool = multiprocessing.Pool(1, maxtasksperchild=1)
-            responses = pool.apply(
-                self._run_func,
-                kwds={
+            with pebble.ProcessPool(max_workers=2, max_tasks=1) as pool:
+                #print(timeout,'timeout length')
+                tasks = pool.schedule(self._run_func, kwargs={
                     'cell_model': cell_model,
                     'param_values': param_values,
-                    'sim': sim})
-
-            pool.terminate()
-            pool.join()
-            del pool
+                    'sim': sim},
+                    timeout=timeout)
+                try:
+                    responses = tasks.result()
+                except TimeoutError:
+                    logger.debug('SweepProtocol: task took longer than '
+                                 'timeout, will return empty response '
+                                 'for this recording')
+                    responses = {recording.name:
+                                 None for recording in self.recordings}
         else:
-            responses = self._run_func(
-                cell_model=cell_model,
-                param_values=param_values,
-                sim=sim)
+            responses = self._run_func(cell_model=cell_model,
+                                       param_values=param_values,
+                                       sim=sim)
+        #time = [r.response[0] for r in responses.values() ]
+        #vm = [ r.response[1] for r in responses.values() ]
 
+        new_responses = {}
+        for k,v in responses.items():
+            if hasattr(v,'response'):
+                time = v.response['time'].values#[r.response[0] for r in self.recording.repsonse ]
+                vm = v.response['voltage'].values #[ r.response[1] for r in self.recording.repsonse ]
+       
+                new_responses['neo_'+str(k)] = AnalogSignal(vm,
+                                        units=pq.mV,
+                                        sampling_period=(time[1]-time[0])*pq.s)
+                train_len = len(sf.get_spike_train(new_responses['neo_'+str(k)]))
+                if train_len>0:
+                    pass
+ 
+
+        responses.update(new_responses)
         return responses
 
     def instantiate(self, sim=None, icell=None):
@@ -205,8 +336,9 @@ class SweepProtocol(Protocol):
                 recording.instantiate(sim=sim, icell=icell)
             except locations.EPhysLocInstantiateException:
                 logger.debug(
-                    'SweepProtocol: Instantiating recording generated location '
-                    'exception, will return empty response for this recording')
+                    'SweepProtocol: Instantiating recording generated '
+                    'location exception, will return empty response for '
+                    'this recording')
 
     def destroy(self, sim=None):
         """Destroy protocol"""

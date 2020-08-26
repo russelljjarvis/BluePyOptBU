@@ -7,6 +7,7 @@ import logging
 import imp
 import ctypes
 import platform
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +20,20 @@ class NrnSimulator(object):
                  random123_globalindex=None):
         """Constructor"""
 
+        if platform.system() == 'Windows':
+            # hoc.so does not exist on NEURON Windows
+            # although \\hoc.pyd can work here, it gives an error for
+            # nrn_nobanner_ line
+            self.disable_banner = False
+            self.banner_disabled = False
+        else:
+            self.disable_banner = True
+            self.banner_disabled = False
+
         self.neuron.h.load_file('stdrun.hoc')
 
         self.dt = dt if dt is not None else self.neuron.h.dt
+        self.neuron.h.dt = self.dt
 
         self.neuron.h.cvode_active(1 if cvode_active else 0)
         if cvode_minstep is not None:
@@ -59,13 +71,12 @@ class NrnSimulator(object):
             glob.glob(os.path.join(nrnpy_path, 'hoc*.so'))
 
         if len(hoc_so_list) != 1:
-            raise Exception(
-                'hoc shared library not found in %s' %
-                nrnpy_path)
-
-        hoc_so = hoc_so_list[0]
-        nrndll = ctypes.cdll[hoc_so]
-        ctypes.c_int.in_dll(nrndll, 'nrn_nobanner_').value = 1
+            warnings.warn('Unable to find Neuron hoc shared library in %s, '
+                          'not disabling banner' % nrnpy_path)
+        else:
+            hoc_so = hoc_so_list[0]
+            nrndll = ctypes.cdll[hoc_so]
+            ctypes.c_int.in_dll(nrndll, 'nrn_nobanner_').value = 1
 
     # pylint: disable=R0201
     # TODO function below should probably a class property or something in that
@@ -74,11 +85,9 @@ class NrnSimulator(object):
     def neuron(self):
         """Return neuron module"""
 
-        if platform.system() != 'Windows':
-            # hoc.so does not exist on NEURON Windows
-            # although \\hoc.pyd can work here, it gives an error for
-            # nrn_nobanner_ line
+        if self.disable_banner and not self.banner_disabled:
             NrnSimulator._nrn_disable_banner()
+            self.banner_disabled = True
 
         import neuron  # NOQA
 
@@ -102,8 +111,6 @@ class NrnSimulator(object):
         if cvode_active is None:
             cvode_active = self.cvode_active
 
-        self.neuron.h.cvode_active(1 if cvode_active else 0)
-
         if not cvode_active and dt is None:  # use dt of simulator
             if self.neuron.h.dt != self.dt:
                 raise Exception(
@@ -113,6 +120,8 @@ class NrnSimulator(object):
                     'current dt: %.6g\n'
                     'init dt: %.6g' % (self.neuron.h.dt, self.dt))
             dt = self.dt
+
+        self.neuron.h.cvode_active(1 if cvode_active else 0)
 
         if cvode_active:
             logger.debug('Running Neuron simulator %.6g ms, with cvode', tstop)

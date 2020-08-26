@@ -50,17 +50,26 @@ class NrnFileMorphology(Morphology, DictMixin):
             do_replace_axon=False,
             do_set_nseg=True,
             comment='',
-            replace_axon_hoc=None):
+            replace_axon_hoc=None,
+            nseg_frequency=40,
+            morph_modifiers=None,
+            morph_modifiers_hoc=None):
         """Constructor
 
         Args:
             morphology_path (str): location of the file describing the
                 morphology
-            do_replace_axon(bool): Does the axon need to be replaced by an AIS
-                stub ?
-            replace_axon_hoc(str): String replacement for the 'replace_axon'
-            command in hoc  Must include 'proc replace_axon(){ ... }  If None,
-            the default replace_axon is used in any created hoc files
+            do_replace_axon (bool): Does the axon need to be replaced by an AIS
+                stub with default function ?
+            replace_axon_hoc (str): String replacement for the 'replace_axon'
+                command in hoc  Must include 'proc replace_axon(){ ... }
+                If None,the default replace_axon is used
+            nseg_frequency (float): frequency of nseg
+            do_set_nseg (bool): if True, it will use nseg_frequency
+            morph_modifiers (list): list of functions to modify the icell
+                with (sim, icell) as arguments
+            morph_modifiers_hoc (list): list of hoc strings corresponding
+                to morph_modifiers
         """
         name = os.path.basename(morphology_path)
         super(NrnFileMorphology, self).__init__(name=name, comment=comment)
@@ -69,6 +78,9 @@ class NrnFileMorphology(Morphology, DictMixin):
         self.morphology_path = morphology_path
         self.do_replace_axon = do_replace_axon
         self.do_set_nseg = do_set_nseg
+        self.nseg_frequency = nseg_frequency
+        self.morph_modifiers = morph_modifiers
+        self.morph_modifiers_hoc = morph_modifiers_hoc
 
         if replace_axon_hoc is None:
             self.replace_axon_hoc = self.default_replace_axon_hoc
@@ -106,6 +118,8 @@ class NrnFileMorphology(Morphology, DictMixin):
         # probably should be more intelligent here, and filter out the
         # lines we don't want
 
+        imorphology.quiet = 1
+
         if platform.system() == 'Windows':
             sim.neuron.h.hoc_stdout('NUL')
         else:
@@ -124,21 +138,21 @@ class NrnFileMorphology(Morphology, DictMixin):
         if self.do_set_nseg:
             self.set_nseg(icell)
 
-        # TODO replace these two functions with general function users can
-        # specify
         if self.do_replace_axon:
             self.replace_axon(sim=sim, icell=icell)
+
+        if self.morph_modifiers is not None:
+            for morph_modifier in self.morph_modifiers:
+                morph_modifier(sim=sim, icell=icell)
 
     def destroy(self, sim=None):
         """Destroy morphology instantiation"""
         pass
 
-    @staticmethod
-    def set_nseg(icell):
+    def set_nseg(self, icell):
         """Set the nseg of every section"""
-
         for section in icell.all:
-            section.nseg = 1 + 2 * int(section.L / 40)
+            section.nseg = 1 + 2 * int(section.L / self.nseg_frequency)
 
     @staticmethod
     def replace_axon(sim=None, icell=None):
@@ -153,11 +167,11 @@ class NrnFileMorphology(Morphology, DictMixin):
         else:
             ais_diams = [icell.axon[0].diam, icell.axon[0].diam]
             # Define origin of distance function
-            sim.neuron.h.distance(sec=icell.soma[0])
+            sim.neuron.h.distance(0, 0.5, sec=icell.soma[0])
 
             for section in icell.axonal:
                 # If distance to soma is larger than 60, store diameter
-                if sim.neuron.h.distance(0.5, sec=section) > 60:
+                if sim.neuron.h.distance(1, 0.5, sec=section) > 60:
                     ais_diams[1] = section.diam
                     break
 
@@ -189,12 +203,10 @@ proc replace_axon(){ local nSec, D1, D2
   if(nSec == 0) { //No axon section present
     D1 = D2 = 1
   } else if(nSec == 1) {
-    access axon[0]
-    D1 = D2 = diam
+    axon[0] D1 = D2 = diam
   } else {
-    access axon[0]
-    D1 = diam
-    access soma distance() //to calculate distance from soma
+    axon[0] D1 = diam
+    soma distance() //to calculate distance from soma
     forsec axonal{
       //if section is longer than 60um then store diam and exit from loop
       if(distance(0.5) > 60){
@@ -211,14 +223,14 @@ proc replace_axon(){ local nSec, D1, D2
 
   create axon[2]
 
-  access axon[0] {
+  axon[0] {
     L = 30
     diam = D1
     nseg = 1 + 2*int(L/40)
     all.append()
     axonal.append()
   }
-  access axon[1] {
+  axon[1] {
     L = 30
     diam = D2
     nseg = 1 + 2*int(L/40)

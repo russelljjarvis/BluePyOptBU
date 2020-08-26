@@ -16,25 +16,25 @@ def create_feature_fields():
 
     fields_content = ''
 
-    print features
+    print(features)
 
     fields_content += \
         '\t\tStimulus & Location & eFeature & Mean & Std \\\\ \n'
     fields_content += '\t\t\\midrule\n'
-    for stimulus, loc_list in sorted(features.iteritems()):
+    for stimulus, loc_list in sorted(features.items()):
         stim_field = stimulus
-        for location, features in sorted(loc_list.iteritems()):
+        for location, features in sorted(loc_list.items()):
             loc_field = location
-            for feature_name, (mean, std) in sorted(features.iteritems()):
+            for feature_name, (mean, std) in sorted(features.items()):
                 feature_name = feature_name.replace('_', '{\\_}')
                 fields_content += '\t\t%s \\\\\n' % ' & '.join([stim_field,
                                                                 loc_field,
                                                                 feature_name,
                                                                 str(mean),
                                                                 str(std)])
-                if loc_field is not '':
+                if loc_field != '':
                     loc_field = ''
-                if stim_field is not '':
+                if stim_field != '':
                     stim_field = ''
     fields_content += '\t\t\\botrule\n'
 
@@ -159,12 +159,13 @@ def main():
     param_fields, n_of_cols = create_param_fields_string()
     param_content = create_table(param_fields, n_of_cols)
     open('tables/params.tex', 'w').write(param_content)
-    print param_content
+    print(param_content)
 
     feature_fields, n_of_cols = create_feature_fields()
     feature_content = create_table(feature_fields, n_of_cols)
     open('tables/features.tex', 'w').write(feature_content)
-    print feature_content
+    print(feature_content)
+
 
 if __name__ == '__main__':
     main()
