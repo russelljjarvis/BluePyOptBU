@@ -1,5 +1,4 @@
-dask==2.5.2
-efel==3.0.72
+dask
 lxml==4.4.1
 elephant==0.4.1
 mock==3.0.5
@@ -11,7 +10,7 @@ plotly==4.5.2
 allensdk==0.16.3
 simplejson==3.17.0
 future==0.17.1
-streamlit==0.52.2
+streamlit
 asciiplotlib==0.2.3
 pandas==1.1.0
 matplotlib==3.1.1
@@ -19,7 +18,7 @@ seaborn==0.9.0
 quantities==0.12.4
 Jinja2==2.10.3
 pyNeuroML==0.3.15
-numpy==1.17.2
+numpy
 Pebble==4.5.3
 backports.statistics==0.1.0
 python_dateutil==2.8.1
@@ -31,12 +30,11 @@ tqdm==4.48.2
 maps==5.1.1
 allensdk==0.16.3
 natsort==7.0.1
-neurodynex==0.3.4
 efel==3.0.72
 nbformat==4.4.0
 quantities==0.12.4
 asciiplotlib==0.2.3
-
+pip install dask[bag]
 git+https://github.com/russelljjarvis/neuronunit
 git+https://github.com/scidash/sciunit
 git+https://github.com/fun-zoological-computing/BluePyOpt
