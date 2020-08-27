@@ -26,7 +26,7 @@ python_dateutil==2.8.1
 scikit_learn==0.23.2
 frozendict==1.2
 neo==0.5.2
-numba==0.45.1
+numba
 tqdm==4.48.2
 maps==5.1.1
 allensdk==0.16.3
