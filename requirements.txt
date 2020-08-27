@@ -34,7 +34,8 @@ efel==3.0.72
 nbformat==4.4.0
 quantities==0.12.4
 asciiplotlib==0.2.3
-pip install dask[bag]
+dask[bag]
+fsspec>=0.3.3
 git+https://github.com/russelljjarvis/neuronunit
 git+https://github.com/scidash/sciunit
 git+https://github.com/fun-zoological-computing/BluePyOpt
