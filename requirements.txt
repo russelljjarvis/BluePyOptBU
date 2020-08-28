@@ -21,7 +21,7 @@ pyNeuroML==0.3.15
 numpy
 Pebble==4.5.3
 backports.statistics==0.1.0
-python_dateutil==2.8.1
+python_dateutil
 scikit_learn==0.23.2
 frozendict==1.2
 neo==0.5.2
