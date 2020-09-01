@@ -20,12 +20,38 @@ import utils
 import streamlit as st
 import bluepyopt as bpop
 from neuronunit.optimisation.model_parameters import MODEL_PARAMS
-from neuronunit.optimisation.optimization_management import inject_and_plot_model, inject_and_plot_passive_model
+from neuronunit.optimisation.optimization_management import inject_and_plot_model, inject_and_plot_passive_model, dtc_to_rheo
 
 
 import pandas as pd
 
 from neuronunit.optimisation.optimization_management import TSD
+
+
+
+def trace_explore_widget():
+  attrs = {k:np.mean(v) for k,v in MODEL_PARAMS["IZHI"].items()}
+  plt.clf()
+  cnt=0
+  slider_value = st.slider(
+  "parameter a", min_value=0.01, max_value=0.1, value=0.05, step=0.001
+  )
+  dtc = DataTC(backend="IZHI",attrs=attrs)
+  dtc.attrs['a'] = slider_value
+  dtc = dtc_to_rheo(dtc)
+  temp_rh = dtc.rheobase
+  model = dtc.dtc_to_model()
+  model.attrs = model._backend.default_attrs
+  model.attrs.update(dtc.attrs)
+
+  from neuronunit.tests.base import AMPL, DELAY, DURATION
+  uc = {'amplitude':temp_rh,'duration':DURATION,'delay':DELAY}
+  model._backend.inject_square_current(uc)
+  vm = model.get_membrane_potential()
+  plt.plot(vm.times,vm.magnitude) 
+
+  cnt+=1
+  st.pyplot()
 
 def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN):
   cell_evaluator, simple_cell, score_calc, test_names = utils.make_evaluator(
@@ -91,8 +117,16 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
 
 if __name__ == "__main__":  
     st.title('Reduced Model Fitting to Data')
+
+    from neuronunit.optimisation.data_transport_container import DataTC
+    from neuronunit.optimisation.model_parameters import MODEL_PARAMS
+    import matplotlib.pyplot as plt
+    from neuronunit.capabilities.spike_functions import get_spike_waveforms
+    from quantities import ms
+    from neuronunit.tests.base import AMPL, DELAY, DURATION
+
+    
     experimental_constraints.pop("Olfactory bulb (main) mitral cell")
-    #API_TOKEN = st.text_input('Please Enter Your Fitbit API token:')
     test_key = st.sidebar.radio("\
       What experiments would you like to fit models to?"
 		,tuple(experimental_constraints.keys()))
