@@ -74,7 +74,7 @@ def _record_stats(stats, logbook, gen, population, invalid_count):
 from deap import tools, gp
 import random
 
-import streamlit 
+import streamlit as st
 
 
 def _get_offspring(parents, toolbox, cxpb, mutpb, mu, wild=False):
@@ -207,6 +207,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
         best_vs_gen.append(halloffame[0])
         _record_stats(stats, logbook, start_gen, population, invalid_count)
         logger.info(logbook.stream)
+        #print(logbook.stream)
 
 
     stopping_criteria = [MaxNGen(ngen)]
