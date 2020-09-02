@@ -116,7 +116,7 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
   
   st.markdown('---')
   st.success("Model best fit to experiment {0}".format(test_key))
-  st.markdown("Would you like to pickle the optimal model? (Note not implemented yet, but trivial)")
+  #st.markdown("Would you like to pickle the optimal model? (Note not implemented yet, but trivial)")
   
   st.markdown('---')
   st.markdown('\n\n\n\n')
@@ -130,16 +130,16 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
   opt.tests = experimental_constraints
   obs_preds = opt.make_pretty(experimental_constraints)
 
-  frame = opt.SA.to_frame()
-  score_frame = frame.T
-  sns.heatmap(score_frame, linewidths = 0.30, annot = True)
-  st.pyplot()
 
   #st.dataframe(score_frame.style.background_gradient(cmap ='viridis').set_properties(**{'font-size': '20px'}))
   
   #plot_imshow_plotly(score_frame.T)
+  frame = opt.SA.to_frame()
+  score_frame = frame.T
 
   st.write(score_frame)
+  st.markdown('\n\n\n\n')
+
   
   # st.dataframe(score_frame.style.applymap(color_large_red))
 
@@ -154,6 +154,11 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
 
   #  sns.heatmap(obs_preds, cmap ='RdYlGn', linewidths = 0.30, annot = True) 
   #  st.pyplot()
+  #g = sns.heatmap(score_frame, linewidths = 0.30, annot = True)
+  #g.set_xticklabels(g.get_xticklabels(),rotation=45)
+
+  #st.pyplot()
+  #st.markdown('\n\n\n\n')
 
   st.markdown("----")
   st.markdown("""
