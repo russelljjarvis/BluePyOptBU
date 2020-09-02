@@ -36,7 +36,37 @@ from quantities import ms
 from neuronunit.tests.base import AMPL, DELAY, DURATION
 MODEL_PARAMS['NEURONHH'] = { k:sorted(v) for k,v in MODEL_PARAMS['NEURONHH'].items() }
 
+import os
+import base64
+def get_binary_file_downloader_html(bin_file_path, file_label='File'):
+    with open(bin_file_path, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    href = f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file_path)}">Download {file_label}</a>'
+    return href
 
+
+def color_large_red(val):
+    """
+    Takes a scalar and returns a string with
+    the css property `'color: red'` for negative
+    strings, black otherwise.
+    """
+    color = "red" if val > 2.0 else "white"
+    return "color: %s" % color
+
+
+def highlight_min(data, color="yellow"):
+    """highlight the maximum in a Series or DataFrame"""
+    attr = "background-color: {}".format(color)
+    if data.ndim == 1:  # Series from .apply(axis=0) or axis=1
+        is_max = data == data.min()
+        return [attr if v else "" for v in is_max]
+    else:  # from .apply(axis=None)
+        is_max = data == data.min().min()
+        return pd.DataFrame(
+            np.where(is_max, attr, ""), index=data.index, columns=data.columns
+        )
 
 def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN):
   cell_evaluator, simple_cell, score_calc, test_names = utils.make_evaluator(
@@ -45,7 +75,7 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
                                                         test_key,
                                                         model=model_value)
   #cell_evaluator, simple_cell, score_calc = make_evaluator(cells,MODEL_PARAMS)
-
+  model_type = str('_best_fit_')+str(model_value)+'_'+str(test_key)+'_.p'
   #MU =10
   mut = 0.05
   cxp = 0.1
@@ -78,10 +108,35 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
   obs_preds = opt.make_pretty(experimental_constraints)
 
   frame = opt.SA.to_frame()
-  st.write(frame.T)
+  score_frame = frame.T
+  st.write(score_frame)
+  
+  # st.dataframe(score_frame.style.applymap(color_large_red))
+
 
   obs_preds = opt.obs_preds
   st.write(obs_preds.T)
+  st.markdown("----")
+  st.markdown("""
+  -----
+  The optimal model parameterization is    
+  -----
+  """)
+  best_params_frame = pd.DataFrame([opt.attrs])
+  st.write(best_params_frame)
+
+  download_opt_model = st.radio("\
+  Would you like to download optimal model model?"
+  ,("No","Yes"))
+  if download_opt_model == "Yes":    
+      with open('best_frame_path.p','wb') as f:
+        pickle.dump(best_params_frame,f)
+
+      st.markdown(get_binary_file_downloader_html('best_frame_path.p',model_type), unsafe_allow_html=True)
+
+      
+
+
   st.markdown("----")
 
   st.markdown("Model behavior at rheobase current injection")
@@ -95,11 +150,8 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
   st.write(fig)
 
   #plt.show()
-  st.markdown("""
-  -----
-  The optimal model parameterization is {0}    
-  -----
-  """.format(opt.attrs))
+
+
 
   st.markdown("""
   -----
@@ -143,7 +195,6 @@ if __name__ == "__main__":
 
 
     experimental_constraints = [ experimental_constraints[k] for k in test_keys ]
-    #st.text(test_keys)
     model_value = st.sidebar.radio("\
 		Which models would you like to optimize"
 		,("ADEXP","IZHI","NEURONHH"))
