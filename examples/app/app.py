@@ -16,6 +16,8 @@ else:
     heroku = True
 import pickle
 experimental_constraints = pickle.load(open("../data_driven/processed_multicellular_constraints.p","rb"))
+olfactory_bulb_constraints = pickle.load(open("olf_tests.p","rb"))
+
 import utils
 import streamlit as st
 import bluepyopt as bpop
@@ -27,31 +29,14 @@ import pandas as pd
 
 from neuronunit.optimisation.optimization_management import TSD
 
+from neuronunit.optimisation.data_transport_container import DataTC
+import matplotlib.pyplot as plt
+from neuronunit.capabilities.spike_functions import get_spike_waveforms
+from quantities import ms
+from neuronunit.tests.base import AMPL, DELAY, DURATION
+MODEL_PARAMS['NEURONHH'] = { k:sorted(v) for k,v in MODEL_PARAMS['NEURONHH'].items() }
 
 
-def trace_explore_widget():
-  attrs = {k:np.mean(v) for k,v in MODEL_PARAMS["IZHI"].items()}
-  plt.clf()
-  cnt=0
-  slider_value = st.slider(
-  "parameter a", min_value=0.01, max_value=0.1, value=0.05, step=0.001
-  )
-  dtc = DataTC(backend="IZHI",attrs=attrs)
-  dtc.attrs['a'] = slider_value
-  dtc = dtc_to_rheo(dtc)
-  temp_rh = dtc.rheobase
-  model = dtc.dtc_to_model()
-  model.attrs = model._backend.default_attrs
-  model.attrs.update(dtc.attrs)
-
-  from neuronunit.tests.base import AMPL, DELAY, DURATION
-  uc = {'amplitude':temp_rh,'duration':DURATION,'delay':DELAY}
-  model._backend.inject_square_current(uc)
-  vm = model.get_membrane_potential()
-  plt.plot(vm.times,vm.magnitude) 
-
-  cnt+=1
-  st.pyplot()
 
 def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN):
   cell_evaluator, simple_cell, score_calc, test_names = utils.make_evaluator(
@@ -76,8 +61,11 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
   best_ind = hall_of_fame[0]
 
   
-
+  st.markdown('---')
   st.success("Model best fit to experiment {0}".format(test_key))
+  st.markdown("Would you like to pickle the optimal model? (Note not implemented yet, but trivial)")
+  
+  st.markdown('---')
   st.markdown('\n\n\n\n')
 
   best_ind_dict = cell_evaluator.param_dict(best_ind)
@@ -94,43 +82,49 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
 
   obs_preds = opt.obs_preds
   st.write(obs_preds.T)
+  st.markdown("----")
+
+  st.markdown("Model behavior at rheobase current injection")
 
   vm,fig = inject_and_plot_model(opt,plotly=True)
   st.write(fig)
+  st.markdown("----")
 
-  #inject_and_plot_passive_model(opt,plotly=Tru)
+  st.markdown("Model behavior at -10pA current injection")
   fig = inject_and_plot_passive_model(opt,opt,plotly=True)
   st.write(fig)
 
   #plt.show()
   st.markdown("""
+  -----
   The optimal model parameterization is {0}    
+  -----
   """.format(opt.attrs))
 
   st.markdown("""
+  -----
   Model Performance Relative to fitting data {0}    
-  """.format(sum(best_ind.fitness.values)/10*len(experimental_constraints)))
+  -----
+  """.format(sum(best_ind.fitness.values)/(30*len(experimental_constraints))))
   # radio_value = st.sidebar.radtio("Target Number of Samples",[10,20,30])
   st.markdown("""
+  -----
   This score is {0} worst score is {1}  
-  """.format(sum(best_ind.fitness.values),10*len(experimental_constraints)))
+  -----
+  """.format(sum(best_ind.fitness.values),30*len(experimental_constraints)))
 
 if __name__ == "__main__":  
-    st.title('Reduced Model Fitting to Data')
-
-    from neuronunit.optimisation.data_transport_container import DataTC
-    from neuronunit.optimisation.model_parameters import MODEL_PARAMS
-    import matplotlib.pyplot as plt
-    from neuronunit.capabilities.spike_functions import get_spike_waveforms
-    from quantities import ms
-    from neuronunit.tests.base import AMPL, DELAY, DURATION
+    st.title('Reduced Model Fitting to Neuroelectro Experimental Constraints')
 
     
+    
     experimental_constraints.pop("Olfactory bulb (main) mitral cell")
+    olf_bulb = {'mitral olfactory bulb cell':olfactory_bulb_constraints}
+    experimental_constraints.update(olf_bulb)
+
     test_key = st.sidebar.radio("\
       What experiments would you like to fit models to?"
 		,tuple(experimental_constraints.keys()))
-
 
 
     experimental_constraints = TSD(experimental_constraints[test_key])
@@ -143,6 +137,9 @@ if __name__ == "__main__":
       test_keys = st.sidebar.multiselect("\
       Are you interested in less than all of the features?"
       ,tuple(experimental_constraints.keys()))
+    else:
+      test_keys = [k for k in experimental_constraints.keys() if k not in set(["InjectedCurrentAPThresholdTest","InjectedCurrentAPWidthTest","InjectedCurrentAPAmplitudeTest"])]
+
 
 
     experimental_constraints = [ experimental_constraints[k] for k in test_keys ]
@@ -161,10 +158,10 @@ if __name__ == "__main__":
 
     MU = st.sidebar.radio("\
 		Population size is"
-		,(10,50,100))
+		,(10,25,50,75,100))
     NGEN = st.sidebar.radio("\
 		Number of generations is"
-		,(10,50,100))
+		,(10,25,50,75,100))
 
     if readiness == "Yes":
       instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN)
