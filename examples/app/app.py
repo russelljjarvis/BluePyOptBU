@@ -45,7 +45,6 @@ def get_binary_file_downloader_html(bin_file_path, file_label='File'):
     href = f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file_path)}">Download {file_label}</a>'
     return href
 
-
 def color_large_red(val):
     """
     Takes a scalar and returns a string with
@@ -68,6 +67,30 @@ def highlight_min(data, color="yellow"):
             np.where(is_max, attr, ""), index=data.index, columns=data.columns
         )
 
+
+def df_to_plotly(df):
+    return {'z': df.values.tolist(),
+            'x': df.columns.tolist(),
+            'y': df.index.tolist()}
+
+
+
+def plot_imshow_plotly(df):
+
+    heat = go.Heatmap(df_to_plotly(df))
+    #fig = go.Figure(data=
+
+    title = 'Lognorm Score Matrix NeuronUnit'               
+
+    layout = go.Layout(title_text=title, title_x=0.5, 
+                    width=600, height=600,
+                    xaxis_showgrid=True,
+                    yaxis_showgrid=True)
+    
+    fig=go.Figure(data=[heat], layout=layout)      
+
+    st.write(fig)
+import seaborn as sns
 def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN):
   cell_evaluator, simple_cell, score_calc, test_names = utils.make_evaluator(
                                                         experimental_constraints,
@@ -109,13 +132,29 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
 
   frame = opt.SA.to_frame()
   score_frame = frame.T
+  sns.heatmap(score_frame, linewidths = 0.30, annot = True)
+  st.pyplot()
+
+  #st.dataframe(score_frame.style.background_gradient(cmap ='viridis').set_properties(**{'font-size': '20px'}))
+  
+  #plot_imshow_plotly(score_frame.T)
+
   st.write(score_frame)
   
   # st.dataframe(score_frame.style.applymap(color_large_red))
 
+  #import seaborn as sns
+  obs_preds = opt.obs_preds.T
+  #obs_preds.rename(columns=)
+  st.dataframe(obs_preds)
 
-  obs_preds = opt.obs_preds
-  st.write(obs_preds.T)
+  #try:
+  #  st.dataframe(obs_preds.style.background_gradient(cmap ='viridis').set_properties(**{'font-size': '20px'}))
+  #except:
+
+  #  sns.heatmap(obs_preds, cmap ='RdYlGn', linewidths = 0.30, annot = True) 
+  #  st.pyplot()
+
   st.markdown("----")
   st.markdown("""
   -----
@@ -201,7 +240,7 @@ if __name__ == "__main__":
 
     diversity = st.sidebar.radio("\
 		Do you want diverse solutions or just the best solution?"
-		,("NSGA2","IBEA"))
+		,("IBEA","NSGA2"))
 
     readiness = st.radio("\
 		Ready to go?"
@@ -209,10 +248,10 @@ if __name__ == "__main__":
 
     MU = st.sidebar.radio("\
 		Population size is"
-		,(10,25,50,75,100))
+		,(25,50,75,100))
     NGEN = st.sidebar.radio("\
 		Number of generations is"
-		,(10,25,50,75,100))
+		,(25,50,75,100))
 
     if readiness == "Yes":
       instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN)
