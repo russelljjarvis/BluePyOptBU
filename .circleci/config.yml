@@ -11,6 +11,10 @@ jobs:
       - python/load-cache
       - python/install-deps
       - python/save-cache
+      - run: 
+          name: "A conda install would be better"      
+          command: sudo apt-get install gfortran libopenblas-dev liblapack-dev
+
 
       - run: 
           name: "Setup custom environment variables"
