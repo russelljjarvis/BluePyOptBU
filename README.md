@@ -5,6 +5,8 @@
 </p>
 
 ------------------
+[![Build Status](https://circleci.com/gh/russelljjarvis/BluePyOpt.svg?style=svg)](https://app.circleci.com/pipelines/github/russelljjarvis/BluePyOpt/)
+
 [![Build Status](https://travis-ci.org/russelljjarvis/BluePyOpt.svg?branch=master)](https://travis-ci.org/russelljjarvis/BluePyOpt)
 ------------------
 # BluePyOpt: Blue Brain Python Optimisation Library
