@@ -19,7 +19,9 @@ jobs:
       - run: 
           name: "A conda install is better"              
           command: wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && bash miniconda.sh -b -p $HOME/miniconda && export PATH="$HOME/miniconda/bin:$PATH"
-
+       - run: 
+          name: "numpy install"              
+          command: sudo $HOME/miniconda/bin/conda install -c anaconda numpy 
       - run: 
           name: "Setup custom environment variables"
           command: echo 'export MY_ENV_VAR="CIRCLE"' >> $BASH_ENV
@@ -27,6 +29,10 @@ jobs:
           command: echo ${CIRCLE_BRANCH}
           name: "What branch am I on?"
       - run:      
+          command: sudo pip install --upgrade pip'
+          name: install 2
+
+       - run:      
           command: sudo pip install -r requirements.txt;
           name: install
       - run: 
