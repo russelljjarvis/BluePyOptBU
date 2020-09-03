@@ -23,6 +23,10 @@ from bluepyopt.parameters import Parameter
 from neuronunit.optimisation.optimization_management import TSD
 
 def glif_specific_modifications(tests):
+
+    '''
+    Now appropriate for all tests
+    '''
     tests = TSD(tests)
     #tests.pop('RheobaseTest',None)
     tests.pop('InjectedCurrentAPAmplitudeTest',None)
@@ -110,6 +114,38 @@ def make_evaluator(nu_tests,
     simple_cell.params_by_names(MODEL_PARAMS[model].keys())
     return cell_evaluator, simple_cell, score_calc , [tt.name for tt in nu_tests]
 
+
+def trace_explore_widget(optimal_model_params=None):
+  '''
+  move this to utils file.
+  Allow app user to explore model behavior around the optimal, 
+  by panning across parameters and then viewing resulting spike shapes.
+  '''
+
+  attrs = {k:np.mean(v) for k,v in MODEL_PARAMS["IZHI"].items()}
+  plt.clf()
+  cnt=0
+  slider_value = st.slider(
+  "parameter a", min_value=0.01, max_value=0.1, value=0.05, step=0.001
+  )
+  if optimal_model_params is None:
+    dtc = DataTC(backend="IZHI",attrs=attrs)
+  else:
+    dtc = DataTC(backend="IZHI",attrs=optimal_model_params)
+  dtc.attrs['a'] = slider_value
+  dtc = dtc_to_rheo(dtc)
+  temp_rh = dtc.rheobase
+  model = dtc.dtc_to_model()
+  model.attrs = model._backend.default_attrs
+  model.attrs.update(dtc.attrs)
+
+  uc = {'amplitude':temp_rh,'duration':DURATION,'delay':DELAY}
+  model._backend.inject_square_current(uc)
+  vm = model.get_membrane_potential()
+  plt.plot(vm.times,vm.magnitude) 
+
+  cnt+=1
+  st.pyplot()
 
 def basic_expVar(trace1, trace2):
     # https://github.com/AllenInstitute/GLIF_Teeter_et_al_2018/blob/master/query_biophys/query_biophys_expVar.py

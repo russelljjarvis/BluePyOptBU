@@ -16,17 +16,81 @@ else:
     heroku = True
 import pickle
 experimental_constraints = pickle.load(open("../data_driven/processed_multicellular_constraints.p","rb"))
+olfactory_bulb_constraints = pickle.load(open("olf_tests.p","rb"))
+
 import utils
 import streamlit as st
 import bluepyopt as bpop
 from neuronunit.optimisation.model_parameters import MODEL_PARAMS
-from neuronunit.optimisation.optimization_management import inject_and_plot_model, inject_and_plot_passive_model
+from neuronunit.optimisation.optimization_management import inject_and_plot_model, inject_and_plot_passive_model, dtc_to_rheo
 
 
 import pandas as pd
 
 from neuronunit.optimisation.optimization_management import TSD
 
+from neuronunit.optimisation.data_transport_container import DataTC
+import matplotlib.pyplot as plt
+from neuronunit.capabilities.spike_functions import get_spike_waveforms
+from quantities import ms
+from neuronunit.tests.base import AMPL, DELAY, DURATION
+MODEL_PARAMS['NEURONHH'] = { k:sorted(v) for k,v in MODEL_PARAMS['NEURONHH'].items() }
+
+import os
+import base64
+def get_binary_file_downloader_html(bin_file_path, file_label='File'):
+    with open(bin_file_path, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    href = f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file_path)}">Download {file_label}</a>'
+    return href
+
+def color_large_red(val):
+    """
+    Takes a scalar and returns a string with
+    the css property `'color: red'` for negative
+    strings, black otherwise.
+    """
+    color = "red" if val > 2.0 else "white"
+    return "color: %s" % color
+
+
+def highlight_min(data, color="yellow"):
+    """highlight the maximum in a Series or DataFrame"""
+    attr = "background-color: {}".format(color)
+    if data.ndim == 1:  # Series from .apply(axis=0) or axis=1
+        is_max = data == data.min()
+        return [attr if v else "" for v in is_max]
+    else:  # from .apply(axis=None)
+        is_max = data == data.min().min()
+        return pd.DataFrame(
+            np.where(is_max, attr, ""), index=data.index, columns=data.columns
+        )
+
+
+def df_to_plotly(df):
+    return {'z': df.values.tolist(),
+            'x': df.columns.tolist(),
+            'y': df.index.tolist()}
+
+
+
+def plot_imshow_plotly(df):
+
+    heat = go.Heatmap(df_to_plotly(df))
+    #fig = go.Figure(data=
+
+    title = 'Lognorm Score Matrix NeuronUnit'               
+
+    layout = go.Layout(title_text=title, title_x=0.5, 
+                    width=600, height=600,
+                    xaxis_showgrid=True,
+                    yaxis_showgrid=True)
+    
+    fig=go.Figure(data=[heat], layout=layout)      
+
+    st.write(fig)
+import seaborn as sns
 def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN):
   cell_evaluator, simple_cell, score_calc, test_names = utils.make_evaluator(
                                                         experimental_constraints,
@@ -34,7 +98,7 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
                                                         test_key,
                                                         model=model_value)
   #cell_evaluator, simple_cell, score_calc = make_evaluator(cells,MODEL_PARAMS)
-
+  model_type = str('_best_fit_')+str(model_value)+'_'+str(test_key)+'_.p'
   #MU =10
   mut = 0.05
   cxp = 0.1
@@ -50,8 +114,11 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
   best_ind = hall_of_fame[0]
 
   
-
+  st.markdown('---')
   st.success("Model best fit to experiment {0}".format(test_key))
+  #st.markdown("Would you like to pickle the optimal model? (Note not implemented yet, but trivial)")
+  
+  st.markdown('---')
   st.markdown('\n\n\n\n')
 
   best_ind_dict = cell_evaluator.param_dict(best_ind)
@@ -63,40 +130,97 @@ def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,N
   opt.tests = experimental_constraints
   obs_preds = opt.make_pretty(experimental_constraints)
 
-  frame = opt.SA.to_frame()
-  st.write(frame.T)
 
-  obs_preds = opt.obs_preds
-  st.write(obs_preds.T)
+  #st.dataframe(score_frame.style.background_gradient(cmap ='viridis').set_properties(**{'font-size': '20px'}))
+  
+  #plot_imshow_plotly(score_frame.T)
+  frame = opt.SA.to_frame()
+  score_frame = frame.T
+
+  st.write(score_frame)
+  st.markdown('\n\n\n\n')
+
+  
+  # st.dataframe(score_frame.style.applymap(color_large_red))
+
+  #import seaborn as sns
+  obs_preds = opt.obs_preds.T
+  #obs_preds.rename(columns=)
+  st.dataframe(obs_preds)
+
+  #try:
+  #  st.dataframe(obs_preds.style.background_gradient(cmap ='viridis').set_properties(**{'font-size': '20px'}))
+  #except:
+
+  #  sns.heatmap(obs_preds, cmap ='RdYlGn', linewidths = 0.30, annot = True) 
+  #  st.pyplot()
+  #g = sns.heatmap(score_frame, linewidths = 0.30, annot = True)
+  #g.set_xticklabels(g.get_xticklabels(),rotation=45)
+
+  #st.pyplot()
+  #st.markdown('\n\n\n\n')
+
+  st.markdown("----")
+  st.markdown("""
+  -----
+  The optimal model parameterization is    
+  -----
+  """)
+  best_params_frame = pd.DataFrame([opt.attrs])
+  st.write(best_params_frame)
+
+  download_opt_model = st.radio("\
+  Would you like to download optimal model model?"
+  ,("No","Yes"))
+  if download_opt_model == "Yes":    
+      with open('best_frame_path.p','wb') as f:
+        pickle.dump(best_params_frame,f)
+
+      st.markdown(get_binary_file_downloader_html('best_frame_path.p',model_type), unsafe_allow_html=True)
+
+      
+
+
+  st.markdown("----")
+
+  st.markdown("Model behavior at rheobase current injection")
 
   vm,fig = inject_and_plot_model(opt,plotly=True)
   st.write(fig)
+  st.markdown("----")
 
-  #inject_and_plot_passive_model(opt,plotly=Tru)
+  st.markdown("Model behavior at -10pA current injection")
   fig = inject_and_plot_passive_model(opt,opt,plotly=True)
   st.write(fig)
 
   #plt.show()
-  st.markdown("""
-  The optimal model parameterization is {0}    
-  """.format(opt.attrs))
+
+
 
   st.markdown("""
+  -----
   Model Performance Relative to fitting data {0}    
-  """.format(sum(best_ind.fitness.values)/10*len(experimental_constraints)))
+  -----
+  """.format(sum(best_ind.fitness.values)/(30*len(experimental_constraints))))
   # radio_value = st.sidebar.radtio("Target Number of Samples",[10,20,30])
   st.markdown("""
+  -----
   This score is {0} worst score is {1}  
-  """.format(sum(best_ind.fitness.values),10*len(experimental_constraints)))
+  -----
+  """.format(sum(best_ind.fitness.values),30*len(experimental_constraints)))
 
 if __name__ == "__main__":  
-    st.title('Reduced Model Fitting to Data')
+    st.title('Reduced Model Fitting to Neuroelectro Experimental Constraints')
+
+    
+    
     experimental_constraints.pop("Olfactory bulb (main) mitral cell")
-    #API_TOKEN = st.text_input('Please Enter Your Fitbit API token:')
+    olf_bulb = {'mitral olfactory bulb cell':olfactory_bulb_constraints}
+    experimental_constraints.update(olf_bulb)
+
     test_key = st.sidebar.radio("\
       What experiments would you like to fit models to?"
 		,tuple(experimental_constraints.keys()))
-
 
 
     experimental_constraints = TSD(experimental_constraints[test_key])
@@ -109,17 +233,19 @@ if __name__ == "__main__":
       test_keys = st.sidebar.multiselect("\
       Are you interested in less than all of the features?"
       ,tuple(experimental_constraints.keys()))
+    else:
+      test_keys = [k for k in experimental_constraints.keys() if k not in set(["InjectedCurrentAPThresholdTest","InjectedCurrentAPWidthTest","InjectedCurrentAPAmplitudeTest"])]
+
 
 
     experimental_constraints = [ experimental_constraints[k] for k in test_keys ]
-    #st.text(test_keys)
     model_value = st.sidebar.radio("\
 		Which models would you like to optimize"
 		,("ADEXP","IZHI","NEURONHH"))
 
     diversity = st.sidebar.radio("\
 		Do you want diverse solutions or just the best solution?"
-		,("NSGA2","IBEA"))
+		,("IBEA","NSGA2"))
 
     readiness = st.radio("\
 		Ready to go?"
@@ -127,10 +253,10 @@ if __name__ == "__main__":
 
     MU = st.sidebar.radio("\
 		Population size is"
-		,(10,50,100))
+		,(25,50,75,100))
     NGEN = st.sidebar.radio("\
 		Number of generations is"
-		,(10,50,100))
+		,(25,50,75,100))
 
     if readiness == "Yes":
       instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN)

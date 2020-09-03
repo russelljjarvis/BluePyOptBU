@@ -32,6 +32,7 @@ import pickle
 from tqdm.auto import tqdm
 
 from .stoppingCriteria import MaxNGen
+from deap.tools import cxSimulatedBinary
 
 logger = logging.getLogger('__main__')
 DASK = False
@@ -70,12 +71,71 @@ def _record_stats(stats, logbook, gen, population, invalid_count):
     record = stats.compile(population) if stats is not None else {}
     logbook.record(gen=gen, nevals=invalid_count, **record)
 
+from deap import tools, gp
+import random
 
-def _get_offspring(parents, toolbox, cxpb, mutpb):
+import streamlit as st
+
+
+def _get_offspring(parents, toolbox, cxpb, mutpb, mu, wild=False):
+    children = deap.algorithms.varOr(parents, toolbox, int(mu), cxpb, mutpb)
+
+
+    #if hasattr(toolbox, 'variate'):
+    #    return toolbox.variate(parents, toolbox, cxpb, mutpb)
+    #else:
+    #    return deap.algorithms.varAnd(parents, toolbox, cxpb, mutpb)
+
+
+    #if hasattr(toolbox, 'variate'):
+    #    return toolbox.variate(parents, toolbox, cxpb, mutpb)
+    return children
+
     '''return the offsprint, use toolbox.variate if possible'''
-    if hasattr(toolbox, 'variate'):
-        return toolbox.variate(parents, toolbox, cxpb, mutpb)
-    return deap.algorithms.varAnd(parents, toolbox, cxpb, mutpb)
+    '''
+    if wild:
+        parents = toolbox.clone(parents)
+    
+        children = []
+        for ind1,ind2 in zip(parents[1:-1],parents[0:-2]):
+            op_choice = random.random()
+            if random.random() < cxpb:
+                #if op_choice < cxpb:      
+            
+                lower = toolbox.uniformparams.args[0][0]
+                upper = toolbox.uniformparams.args[1][0]
+                ind3 = tools.cxSimulatedBinaryBounded(ind1, ind2, 0.75,lower,upper)
+                #gp.cxOnePointLeafBiased(ind1, ind2, 0.9)
+                try:
+                    del ind3[0].fitness.values #= False    
+                    del ind3[1].fitness.values # = False
+                except:
+                    pass
+                children.append(ind3[0])
+                children.append(ind3[1])
+    else:
+    '''    
+    '''
+    children = []
+    for ind1,ind2 in zip(parents[1:-1],parents[0:-2]):
+        lower = toolbox.uniformparams.args[0][0]
+        upper = toolbox.uniformparams.args[1][0]
+        ind3 = tools.cxSimulatedBinaryBounded(ind1, ind2, 0.9,lower,upper)
+        try:
+            del ind3[0].fitness.values #= False    
+            del ind3[1].fitness.values # = False
+        except:
+            pass
+        children.append(ind3[0])
+        children.append(ind3[1])
+    '''
+
+    #lambda_ = mu
+
+    #children = deap.algorithms.varAnd(parents, toolbox, cxpb, mutpb)
+
+    #if hasattr(toolbox, 'variate'):
+    #    return toolbox.variate(parents, toolbox, cxpb, mutpb)
 
 
 def _check_stopping_criteria(criteria, params):
@@ -89,6 +149,7 @@ def _check_stopping_criteria(criteria, params):
         return False
 
 import numpy as np
+import streamlit as st
 def eaAlphaMuPlusLambdaCheckpoint(
         population,
         toolbox,
@@ -130,6 +191,9 @@ def eaAlphaMuPlusLambdaCheckpoint(
         history = cp["history"]
         random.setstate(cp["rndstate"])
     else:
+        best_vs_gen = []
+        prog_bar = st.progress(0)
+
         # Start a new evolution
         start_gen = 1
         parents = population[:]
@@ -140,9 +204,10 @@ def eaAlphaMuPlusLambdaCheckpoint(
         # TODO this first loop should be not be repeated !
         invalid_count = _evaluate_invalid_fitness(toolbox, population)
         _update_history_and_hof(halloffame, history, population)
-        
+        best_vs_gen.append(halloffame[0])
         _record_stats(stats, logbook, start_gen, population, invalid_count)
         logger.info(logbook.stream)
+        #print(logbook.stream)
 
 
     stopping_criteria = [MaxNGen(ngen)]
@@ -150,29 +215,31 @@ def eaAlphaMuPlusLambdaCheckpoint(
     # Begin the generational process
     gen = start_gen + 1
     stopping_params = {"gen": gen}
-
+        
     pbar = tqdm(total=ngen)
     while not(_check_stopping_criteria(stopping_criteria, stopping_params)):
         
-        offspring = _get_offspring(parents, toolbox, cxpb, mutpb)
-
+        #offspring = _get_offspring(parents, toolbox, cxpb, mutpb, mu/3, wild=False)
+        offspring = _get_offspring(parents, toolbox, cxpb, mutpb, mu, wild=True)
+        #offspring.extend(offspring2)
         population = parents + offspring
         if ELITISM:
-            population.append(halloffame[0])
+           population.append(halloffame[0])
         flo = np.sum(halloffame[0].fitness.values)
         stopping_params.update({'hof':flo})
         stop = _check_stopping_criteria(stopping_criteria, stopping_params)
         
-        #print(flo,np.sum(halloffame[0].fitness.values),'inside')
+        #print(flo,halloffame[0].fitness.values,'inside')
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
         
         _update_history_and_hof(halloffame, history, population)
+        best_vs_gen.append(halloffame[0])
         _record_stats(stats, logbook, gen, population, invalid_count)
 
         # Select the next generation parents
         parents = toolbox.select(population, mu)
-        if ELITISM:
-            parents.append(halloffame[0])
+        #if ELITISM:
+        #    parents.append(halloffame[0])
         logger.info(logbook.stream)
 
         if(cp_filename and cp_frequency and
@@ -186,7 +253,9 @@ def eaAlphaMuPlusLambdaCheckpoint(
                       rndstate=random.getstate())
             pickle.dump(cp, open(cp_filename, "wb"))
             logger.debug('Wrote checkpoint to %s', cp_filename)
-
+        current_prog = gen / ngen
+        prog_bar.progress(current_prog)
+ 
         gen += 1
         stopping_params["gen"] = gen
         pbar.update(1)

@@ -31,9 +31,11 @@ import os
 import collections
 import string
 
-from . import create_hoc
-from . import morphologies
-
+try:
+    from . import create_hoc
+    from . import morphologies
+except:
+    print("Not trying to support NEURON")
 import logging
 logger = logging.getLogger(__name__)
 
@@ -172,6 +174,7 @@ class ReducedCellModel(VeryReducedModel,
         #attrs.update(copy.copy(param_values))
         dtc = self.model_to_dtc(attrs=all_attrs)
         #self.destroy()
+        #print(all_attrs)
         assert len(dtc.attrs)
         from neuronunit.optimisation.optimization_management import dtc_to_rheo  
 
