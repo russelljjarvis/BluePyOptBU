@@ -14,7 +14,9 @@ jobs:
       - run: 
           name: "A conda install would be better"      
           command: sudo apt-get install gfortran libopenblas-dev liblapack-dev
-
+      - run: 
+          name: "A conda install is better"              
+          command: wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && bash miniconda.sh -b -p $HOME/miniconda && export PATH="$HOME/miniconda/bin:$PATH"
 
       - run: 
           name: "Setup custom environment variables"
