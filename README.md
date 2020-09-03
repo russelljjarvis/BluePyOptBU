@@ -1,10 +1,11 @@
-
 -----------------
 
 <p align="center">
   <img src="optimizer_app.mp4" width="700" height="550"/>
 </p>
 
+------------------
+[![Build Status](https://travis-ci.org/russelljjarvis/BluePyOpt.svg?branch=master)](https://travis-ci.org/russelljjarvis/BluePyOpt)
 ------------------
 # BluePyOpt: Blue Brain Python Optimisation Library
 
