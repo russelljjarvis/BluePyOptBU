@@ -41,6 +41,8 @@ bluepyopt.optimisations.DEAPOptimisation = \
 import bluepyopt.evaluators
 import bluepyopt.objectives
 import bluepyopt.parameters  # NOQA
+import bluepyopt.examples  # NOQA
+import bluepyopt.examples.app.utils  # NOQA
 
 # TODO let objects read / write themselves using json
 # TODO create 'Variables' class

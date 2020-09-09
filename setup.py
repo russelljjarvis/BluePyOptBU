@@ -32,16 +32,11 @@ setuptools.setup(
         'pandas>=0.18',
         'deap',
         'efel>=2.13',
-        'scoop>=0.7',
-        'ipyparallel',
         'pickleshare>=0.7.3',
         'Jinja2>=2.8',
         'future',
 	'Pebble>=4.3.10'],
-    packages=setuptools.find_packages(
-        exclude=(
-            'examples',
-        )),
+    packages=setuptools.find_packages(),
     author="BlueBrain Project, EPFL",
     author_email="werner.vangeit@epfl.ch",
     description="Bluebrain Python Optimisation Library (bluepyopt)",
