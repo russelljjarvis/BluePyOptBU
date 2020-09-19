@@ -207,6 +207,7 @@ class SweepProtocol(Protocol):
                 # The defualt NEURON SIM RUN
                 ##
                 if not hasattr(cell_model,'NU'):
+                    #self.cvode_active = False
                     sim.run(self.total_duration, cvode_active=self.cvode_active)
                 
 
@@ -226,28 +227,49 @@ class SweepProtocol(Protocol):
                     # first populate the dtc by frozen default attributes
                     # then update with dynamic gene attributes as appropriate.
                     attrs = cell_model._backend.default_attrs
-                    #attrs = copy.copy(dfa)
                     attrs.update(copy.copy(param_values))
-                    #print(attrs,param_values, 'gets here \n\n\n\')
                     assert attrs is not None
                     assert len(param_values)
                     dtc = cell_model.model_to_dtc(attrs=attrs) 
-                    #copy.copy(param_values)
-                    
                     if hasattr(cell_model,'allen'):
-  
-                        #
-                        from neuronunit.optimisation.optimization_management import three_step_protocol
 
-                        dtc = three_step_protocol(dtc)   
-                        vm = cell_model.inject_model()
-                        if hasattr(dtc,'everything'):
-                            responses = {'features':dtc.everything,'name':'rheobase_inj','dtc':dtc,'model':cell_model,'rheobase':cell_model.rheobase,'params':param_values}
+
+
+                        from neuronunit.optimisation.optimization_management import three_step_protocol
+                        if hasattr(cell_model,'seeded_current'):
+                            dtc.seeded_current = cell_model.seeded_current
+                            dtc.spk_count = cell_model.spk_count
+
+                            dtc = three_step_protocol(dtc,known_current=cell_model.seeded_current)
+                            vm = cell_model.inject_model()
+                            if hasattr(dtc,'everything'):
+                                #print(dtc.everything['Spikecount_1.5x'],'broken?')
+                                #print(dtc.Spikecount_15,'broken no this one is right')
+                                #dtc.everything['Spikecount_1.5x'] = dtc.Spikecount_15
+
+                                responses = {'features':dtc.everything,'name':'rheobase_inj',
+                                'dtc':dtc,'model':cell_model,'rheobase':cell_model.rheobase,'params':param_values}
+                            else:
+                                responses = {'name':'rheobase_inj','model':dtc,
+                                'rheobase':cell_model.rheobase,'params':param_values}
+
                         else:
-                            responses = {'name':'rheobase_inj','model':dtc,'rheobase':cell_model.rheobase,'params':param_values}
+                            #print('also goes here why?')
+                            dtc = three_step_protocol(dtc)
+
+                            vm = cell_model.inject_model()
+                            if hasattr(dtc,'everything'):
+                                responses = {'features':dtc.everything,'name':'rheobase_inj',
+                                'dtc':dtc,'model':cell_model,'rheobase':cell_model.rheobase,'params':param_values}
+                            else:
+                                responses = {'name':'rheobase_inj','model':dtc,
+                                'rheobase':cell_model.rheobase,'params':param_values}
                     else:
                         vm = cell_model.inject_model()
-                        responses = {'name':'rheobase_inj','response':vm,'model':dtc,'rheobase':cell_model.rheobase,'params':param_values}
+
+                        responses = {'name':'rheobase_inj',
+                        'response':vm,'model':dtc,
+                        'rheobase':cell_model.rheobase,'params':param_values}
 
                     return responses
 
@@ -298,7 +320,12 @@ class SweepProtocol(Protocol):
         copyreg.pickle(types.MethodType, _reduce_method)
         '''
         if isolate:# and not cell_model.name in 'L5PC':
-            
+            '''
+            responses = self._run_func(cell_model=cell_model,
+                            param_values=param_values,
+                            sim=sim)
+            return responses
+            '''
             def _reduce_method(meth):
                 """Overwrite reduce"""
                 return (getattr, (meth.__self__, meth.__func__.__name__))
@@ -313,9 +340,13 @@ class SweepProtocol(Protocol):
             if timeout is not None:
                 if timeout < 0:
                     raise ValueError("timeout should be > 0")
-
+            ###
+            # Foriegn code
+            ###
+            #responses = self._run_func(cell_model=cell_model,param_values=param_values,sim=sim)
+            #import pdb
+            #pdb.set_trace()
             with pebble.ProcessPool(max_workers=1, max_tasks=1) as pool:
-                #print(timeout,'timeout length')
                 tasks = pool.schedule(self._run_func, kwargs={
                     'cell_model': cell_model,
                     'param_values': param_values,
@@ -329,6 +360,7 @@ class SweepProtocol(Protocol):
                                  'for this recording')
                     responses = {recording.name:
                                  None for recording in self.recordings}
+            
         else:
             responses = self._run_func(cell_model=cell_model,
                                        param_values=param_values,

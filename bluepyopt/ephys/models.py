@@ -148,6 +148,7 @@ class ReducedCellModel(VeryReducedModel,
                     try:
                         dynamic_attrs = {str(k):float(v) for k,v in self.attrs.items()}
                     except:
+
                         dynamic_attrs = {str(k):float(v.value) for k,v in self.attrs.items()}
 
         if self._backend is None:
@@ -229,8 +230,16 @@ class ReducedCellModel(VeryReducedModel,
         """Set params"""
 
         for param_name, param_value in param_dict.items():
-            self.params[param_name].freeze(param_value)
+            if hasattr(self.params[param_name],'freeze'):# is type(np.float):
+                self.params[param_name].freeze(param_value)
+            else:
+                from bluepyopt.parameters import Parameter
 
+                self.params[param_name] = Parameter(name=param_name,value=param_value,frozen=True)
+                #self.params[param_name].freeze(param_value)
+                #self.params[param_name] = param_value
+
+                
     def unfreeze(self, param_names):
         """Unset params"""
 
@@ -248,7 +257,9 @@ class ReducedCellModel(VeryReducedModel,
 
         dtc = self.model_to_dtc()
         for k,v in self.params.items():
-            v = float(v.value)
+            if hasattr(v,'value'):
+                v = float(v.value)
+                
             dtc.attrs[k] = v
             self.attrs[k] = v
         return dtc
