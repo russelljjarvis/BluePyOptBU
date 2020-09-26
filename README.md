@@ -1,3 +1,4 @@
+[![Build Status](https://circleci.com/gh/russelljjarvis/BluePyOpt.svg?style=svg)](https://app.circleci.com/pipelines/github/russelljjarvis/BluePyOpt/)
 
 -----------------
 
