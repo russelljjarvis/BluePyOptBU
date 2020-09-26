@@ -86,6 +86,7 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
         self.isolate_protocols = isolate_protocols
         self.timeout = timeout
         self.use_params_for_seed = use_params_for_seed
+        #self.seeded_current = seeded_current
 
     def param_dict(self, param_array):
         """Convert param_array in param_dict"""
@@ -208,8 +209,8 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
         if hasattr(self,'NU'):
             param_dict = self.param_dict(param_list)
             responses = self.run_protocols(
-            self.fitness_protocols.values(),
-            param_dict)
+                self.fitness_protocols.values(),
+                param_dict)
             return responses
         else:
             return self.evaluate_with_lists(param_list)

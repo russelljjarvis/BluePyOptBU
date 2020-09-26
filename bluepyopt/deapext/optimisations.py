@@ -271,6 +271,21 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
         # Generate the population object
         if self.seeded_pop is None:
             pop = self.toolbox.population(n=offspring_size)
+
+            '''
+            from SALib.sample import saltelli
+            fps_izhi = list(MODEL_PARAMS[model_type].keys())
+
+            problem = {
+                'num_vars': len(fps_izhi),
+                'names': fps_izhi,
+                'bounds': [list(i) for i in MODEL_PARAMS[model_type].values() ]
+            }
+
+            saltelli_values1 = saltelli.sample(problem, 1)
+
+            pop = saltelli.sample(problem, 5)
+            '''
         else:
             pop = self.toolbox.population(n=offspring_size)
             for ind,sd in zip(pop,self.seeded_pop[0]):
@@ -283,14 +298,15 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                 for i,j in enumerate(ind):
                     ind[i] = sd[i]
                     for f in ind[i].fitness.values:
-                        f = 0.5
+                        f = 100
                     replaced.append(ind)
 
             self.hof = replaced
+            
+            import pdb
+            pdb.set_trace()
             '''
-            #import pdb
-            #pdb.set_trace()
-            #del self.seeded_pop
+            self.seeded_pop =  None
 
         stats = deap.tools.Statistics(key=lambda ind: ind.fitness.sum)
         import numpy

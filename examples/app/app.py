@@ -23,11 +23,12 @@ import streamlit as st
 import bluepyopt as bpop
 from neuronunit.optimisation.model_parameters import MODEL_PARAMS
 from neuronunit.optimisation.optimization_management import inject_and_plot_model, inject_and_plot_passive_model, dtc_to_rheo
+#from neuronunit.optimisation.optimization_management import inject_and_plot_model, inject_and_plot_passive_model, dtc_to_rheo
 
 
 import pandas as pd
 
-from neuronunit.optimisation.optimization_management import TSD
+from neuronunit.optimisation.optimization_management import TSD, display_fitting_data
 
 from neuronunit.optimisation.data_transport_container import DataTC
 import matplotlib.pyplot as plt
@@ -38,6 +39,64 @@ MODEL_PARAMS['NEURONHH'] = { k:sorted(v) for k,v in MODEL_PARAMS['NEURONHH'].ite
 
 import os
 import base64
+import seaborn as sns
+from scipy.stats import norm
+
+#from utils import plot_as_normal
+from neuronunit.optimisation.optimization_management import instance_opt
+from neuronunit.optimisation.optimization_management import plot_as_normal
+
+def make_allen():
+  import quantities as qt
+  from neuronunit.tests import *
+  from sciunit import TestSuite
+
+  from sciunit.scores import ZScore, RatioScore
+
+  rt = RheobaseTest(observation={'mean':70*qt.pA,'std':70*qt.pA})
+  tc = TimeConstantTest(observation={'mean':24.4*qt.ms,'std':24.4*qt.ms})
+  ir = InputResistanceTest(observation={'mean':132*qt.MOhm,'std':132*qt.MOhm})
+  rp = RestingPotentialTest(observation={'mean':-71.6*qt.mV,'std':77.5*qt.mV})
+
+  allen_tests = [rt,tc,rp,ir]
+  for t in allen_tests:
+      t.score_type = RatioScore
+  allen_tests[-1].score_type = ZScore
+  allen_suite482493761 = TestSuite(allen_tests)
+  allen_suite482493761.name = "http://celltypes.brain-map.org/mouse/experiment/electrophysiology/482493761"
+
+  rt = RheobaseTest(observation={'mean':190*qt.pA,'std':190*qt.pA})
+  tc = TimeConstantTest(observation={'mean':13.8*qt.ms,'std':13.8*qt.ms})
+  ir = InputResistanceTest(observation={'mean':132*qt.MOhm,'std':132*qt.MOhm})
+  rp = RestingPotentialTest(observation={'mean':-77.5*qt.mV,'std':77.5*qt.mV})
+
+  allen_tests = [rt,tc,rp,ir]
+  for t in allen_tests:
+      t.score_type = RatioScore
+  allen_tests[-1].score_type = ZScore
+  allen_suite471819401 = TestSuite(allen_tests)
+  allen_suite471819401.name = "http://celltypes.brain-map.org/mouse/experiment/electrophysiology/471819401"
+  list_of_dicts = []
+  cells={}
+  cells['471819401'] = TSD(allen_suite471819401)
+  cells['482493761'] = TSD(allen_suite482493761)
+
+  for k,v in cells.items():
+      observations = {}
+      for k1 in cells['482493761'].keys():
+          vsd = TSD(v)
+          if k1 in vsd.keys():
+              vsd[k1].observation['mean']
+              
+              observations[k1] = np.round(vsd[k1].observation['mean'],2)
+              observations['name'] = k
+      list_of_dicts.append(observations)
+  df = pd.DataFrame(list_of_dicts)
+  df
+
+
+  return allen_suite471819401,allen_suite482493761,df
+
 def get_binary_file_downloader_html(bin_file_path, file_label='File'):
     with open(bin_file_path, 'rb') as f:
         data = f.read()
@@ -90,138 +149,31 @@ def plot_imshow_plotly(df):
     fig=go.Figure(data=[heat], layout=layout)      
 
     st.write(fig)
-import seaborn as sns
-def instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN):
-  cell_evaluator, simple_cell, score_calc, test_names = utils.make_evaluator(
-                                                        experimental_constraints,
-                                                        MODEL_PARAMS,
-                                                        test_key,
-                                                        model=model_value)
-  #cell_evaluator, simple_cell, score_calc = make_evaluator(cells,MODEL_PARAMS)
-  model_type = str('_best_fit_')+str(model_value)+'_'+str(test_key)+'_.p'
-  #MU =10
-  mut = 0.05
-  cxp = 0.1
-  optimisation = bpop.optimisations.DEAPOptimisation(
-          evaluator=cell_evaluator,
-          offspring_size = MU,
-          map_function = utils.dask_map_function,
-          selector_name=diversity,
-          mutpb=mut,
-          cxpb=cxp)
 
-  final_pop, hall_of_fame, logs, hist = optimisation.run(max_ngen=NGEN)
-  best_ind = hall_of_fame[0]
-
-  
-  st.markdown('---')
-  st.success("Model best fit to experiment {0}".format(test_key))
-  #st.markdown("Would you like to pickle the optimal model? (Note not implemented yet, but trivial)")
-  
-  st.markdown('---')
-  st.markdown('\n\n\n\n')
-
-  best_ind_dict = cell_evaluator.param_dict(best_ind)
-  model = cell_evaluator.cell_model
-  cell_evaluator.param_dict(best_ind)
-  model.attrs = {str(k):float(v) for k,v in cell_evaluator.param_dict(best_ind).items()}
-  opt = model.model_to_dtc()
-  opt.attrs = {str(k):float(v) for k,v in cell_evaluator.param_dict(best_ind).items()}
-  opt.tests = experimental_constraints
-  obs_preds = opt.make_pretty(experimental_constraints)
-
-
-  #st.dataframe(score_frame.style.background_gradient(cmap ='viridis').set_properties(**{'font-size': '20px'}))
-  
-  #plot_imshow_plotly(score_frame.T)
-  frame = opt.SA.to_frame()
-  score_frame = frame.T
-
-  st.write(score_frame)
-  st.markdown('\n\n\n\n')
-
-  
-  # st.dataframe(score_frame.style.applymap(color_large_red))
-
-  #import seaborn as sns
-  obs_preds = opt.obs_preds.T
-  #obs_preds.rename(columns=)
-  st.dataframe(obs_preds)
-
-  #try:
-  #  st.dataframe(obs_preds.style.background_gradient(cmap ='viridis').set_properties(**{'font-size': '20px'}))
-  #except:
-
-  #  sns.heatmap(obs_preds, cmap ='RdYlGn', linewidths = 0.30, annot = True) 
-  #  st.pyplot()
-  #g = sns.heatmap(score_frame, linewidths = 0.30, annot = True)
-  #g.set_xticklabels(g.get_xticklabels(),rotation=45)
-
-  #st.pyplot()
-  #st.markdown('\n\n\n\n')
-
-  st.markdown("----")
-  st.markdown("""
-  -----
-  The optimal model parameterization is    
-  -----
-  """)
-  best_params_frame = pd.DataFrame([opt.attrs])
-  st.write(best_params_frame)
-
-  download_opt_model = st.radio("\
-  Would you like to download optimal model model?"
-  ,("No","Yes"))
-  if download_opt_model == "Yes":    
-      with open('best_frame_path.p','wb') as f:
-        pickle.dump(best_params_frame,f)
-
-      st.markdown(get_binary_file_downloader_html('best_frame_path.p',model_type), unsafe_allow_html=True)
-
-      
-
-
-  st.markdown("----")
-
-  st.markdown("Model behavior at rheobase current injection")
-
-  vm,fig = inject_and_plot_model(opt,plotly=True)
-  st.write(fig)
-  st.markdown("----")
-
-  st.markdown("Model behavior at -10pA current injection")
-  fig = inject_and_plot_passive_model(opt,opt,plotly=True)
-  st.write(fig)
-
-  #plt.show()
-
-
-
-  st.markdown("""
-  -----
-  Model Performance Relative to fitting data {0}    
-  -----
-  """.format(sum(best_ind.fitness.values)/(30*len(experimental_constraints))))
-  # radio_value = st.sidebar.radtio("Target Number of Samples",[10,20,30])
-  st.markdown("""
-  -----
-  This score is {0} worst score is {1}  
-  -----
-  """.format(sum(best_ind.fitness.values),30*len(experimental_constraints)))
 
 if __name__ == "__main__":  
+    allen_suite471819401,allen_suite482493761,df = make_allen_tests()
     st.title('Reduced Model Fitting to Neuroelectro Experimental Constraints')
-
+    st.markdown('------')
+    st.markdown('Select the measurements you want to use to guide fitting')
+ 
     
     
     experimental_constraints.pop("Olfactory bulb (main) mitral cell")
     olf_bulb = {'mitral olfactory bulb cell':olfactory_bulb_constraints}
     experimental_constraints.update(olf_bulb)
+    experimental_constraints["Allen471819401"] = allen_suite471819401
+    experimental_constraints["Allen482493761"] = allen_suite482493761
 
     test_key = st.sidebar.radio("\
       What experiments would you like to fit models to?"
 		,tuple(experimental_constraints.keys()))
-
+    view_data_in_detail = st.sidebar.radio("\
+      view data in detail?"
+      ,("No","Yes"))
+    if view_data_in_detail=="Yes":
+      df = display_fitting_data()  
+      st.table(df)
 
     experimental_constraints = TSD(experimental_constraints[test_key])
     
@@ -237,6 +189,7 @@ if __name__ == "__main__":
       test_keys = [k for k in experimental_constraints.keys() if k not in set(["InjectedCurrentAPThresholdTest","InjectedCurrentAPWidthTest","InjectedCurrentAPAmplitudeTest"])]
 
 
+    full_test_list = copy.copy(experimental_constraints)
 
     experimental_constraints = [ experimental_constraints[k] for k in test_keys ]
     model_value = st.sidebar.radio("\
@@ -256,10 +209,10 @@ if __name__ == "__main__":
 		,(25,50,75,100))
     NGEN = st.sidebar.radio("\
 		Number of generations is"
-		,(25,50,75,100))
+		,(50,75,100,125))
 
     if readiness == "Yes":
-      instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN)
+      instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN,diversity,full_test_list,use_streamlit=True)
       
      
       if model_value == "ADEXP":
@@ -296,5 +249,5 @@ if __name__ == "__main__":
       Which models would you like to optimize"
       ,("ADEXP","IZHI","NEURONHH"))
       if another_go == "Yes" and (new_model_value is not model_value):
-        instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN)
+        instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN,diversity,full_test_list,use_streamlit=True)
 

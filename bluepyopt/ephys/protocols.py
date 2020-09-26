@@ -151,7 +151,7 @@ class SweepProtocol(Protocol):
         super(SweepProtocol, self).__init__(name)
         self.stimuli = stimuli
         self.recordings = recordings
-        self.cvode_active = cvode_active
+        #self.cvode_active = cvode_active
 
     @property
     def total_duration(self):
@@ -207,7 +207,7 @@ class SweepProtocol(Protocol):
                 # The defualt NEURON SIM RUN
                 ##
                 if not hasattr(cell_model,'NU'):
-                    #self.cvode_active = False
+                    self.cvode_active = False
                     sim.run(self.total_duration, cvode_active=self.cvode_active)
                 
 
@@ -266,10 +266,18 @@ class SweepProtocol(Protocol):
                                 'rheobase':cell_model.rheobase,'params':param_values}
                     else:
                         vm = cell_model.inject_model()
-
+                        #from neuronunit.capabilities.spike_functions import get_spike_waveforms
+                        
+                        #real_spike = get_spike_waveforms(vm)
+                        #if real_spike:
                         responses = {'name':'rheobase_inj',
                         'response':vm,'model':dtc,
                         'rheobase':cell_model.rheobase,'params':param_values}
+                        #else:
+                        #    print('hit none')
+                        #    responses = {'name':'rheobase_inj',
+                        #    'response':[np.nan],'model':dtc,
+                        #    'rheobase':cell_model.rheobase,'params':param_values}
 
                     return responses
 
@@ -321,11 +329,15 @@ class SweepProtocol(Protocol):
         '''
         if isolate:# and not cell_model.name in 'L5PC':
             '''
-            responses = self._run_func(cell_model=cell_model,
-                            param_values=param_values,
-                            sim=sim)
-            return responses
+            try:
+                responses = self._run_func(cell_model=cell_model,
+                        param_values=param_values,
+                        sim=sim)
+            except:
+                responses = {recording.name:
+                None for recording in self.recordings}
             '''
+       
             def _reduce_method(meth):
                 """Overwrite reduce"""
                 return (getattr, (meth.__self__, meth.__func__.__name__))
@@ -346,21 +358,59 @@ class SweepProtocol(Protocol):
             #responses = self._run_func(cell_model=cell_model,param_values=param_values,sim=sim)
             #import pdb
             #pdb.set_trace()
+
+            if hasattr(cell_model,'backend'):
+                if str(cell_model.backend) not in "ADEXP":
+                    #print('1 backend, parallel slow down circumnavigated',cell_model.backend)
+                    responses = self._run_func(cell_model=cell_model,
+                        param_values=param_values,
+                        sim=sim)
+                    #print(responses)
+                    return responses
+
             with pebble.ProcessPool(max_workers=1, max_tasks=1) as pool:
                 tasks = pool.schedule(self._run_func, kwargs={
                     'cell_model': cell_model,
                     'param_values': param_values,
                     'sim': sim},
                     timeout=timeout)
+                ##
+                # works if inverted try for except etc
+                ##
+                #try:# TimeoutError:
+                #try:
                 try:
                     responses = tasks.result()
-                except TimeoutError:
-                    logger.debug('SweepProtocol: task took longer than '
-                                 'timeout, will return empty response '
-                                 'for this recording')
-                    responses = {recording.name:
-                                 None for recording in self.recordings}
-            
+                except:
+                    #print('izh fails here?')
+                    #print('backend',cell_model.backend)
+                    responses = self._run_func(cell_model=cell_model,
+                        param_values=param_values,
+                        sim=sim)
+                #except:
+                '''
+                    print('gets into error but causes hang')
+                    responses = self._run_func(cell_model=cell_model,
+                            param_values=param_values,
+                            sim=sim)
+
+                    responses = {'None':None}
+                except:
+                    #print(param_values)
+
+                    try:
+                        
+                    except:
+                        print('gets into error but causes hang')
+                        responses = {'None':None}
+                    
+
+                
+                logger.debug('SweepProtocol: task took longer than '
+                                'timeout, will return empty response '
+                                'for this recording')
+                
+                '''
         else:
             responses = self._run_func(cell_model=cell_model,
                                        param_values=param_values,
@@ -373,10 +423,18 @@ class SweepProtocol(Protocol):
             if hasattr(v,'response'):
                 time = v.response['time'].values#[r.response[0] for r in self.recording.repsonse ]
                 vm = v.response['voltage'].values #[ r.response[1] for r in self.recording.repsonse ]
-       
-                new_responses['neo_'+str(k)] = AnalogSignal(vm,
-                                        units=pq.mV,
-                                        sampling_period=(time[1]-time[0])*pq.s)
+                if not hasattr(cell_model,'l5pc'):
+                    #new_responses['neo_'+str(k)] = AnalogSignal(vm,
+                    #                    units=pq.mV,
+                    #                    sampling_period=0.025*pq.ms)
+                    
+                    new_responses['neo_'+str(k)] = AnalogSignal(vm,units=pq.mV,sampling_period=(1/0.01255)*pq.s)
+
+
+                else:
+                    new_responses['neo_'+str(k)] = AnalogSignal(vm,
+                                            units=pq.mV,
+                                            sampling_period=(time[1]-time[0])*pq.s)
                 train_len = len(sf.get_spike_train(new_responses['neo_'+str(k)]))
                 if train_len>0:
                     pass

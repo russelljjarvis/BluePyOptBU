@@ -46,5 +46,5 @@ class MaxNGen(bluepyopt.stoppingCriteria.StoppingCriteria):
             self.cnt+=1
             # the HOF might be zero, but also want population to converge around 
             # zero, this requires generations.
-            if self.cnt>6:
+            if self.cnt>7:
                 self.criteria_met = True

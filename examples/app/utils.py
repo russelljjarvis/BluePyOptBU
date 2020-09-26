@@ -22,6 +22,9 @@ from bluepyopt.parameters import Parameter
 
 from neuronunit.optimisation.optimization_management import TSD
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 def glif_specific_modifications(tests):
 
     '''

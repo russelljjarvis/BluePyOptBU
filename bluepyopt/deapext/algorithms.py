@@ -49,6 +49,11 @@ def _evaluate_invalid_fitness(toolbox, population):
     #    fitnesses = list(dask.compute(lazy))
     #except:
     fitnesses = toolbox.map(eval_, invalid_ind)
+    #if hasattr(fitnesses,'result'):
+    #    for ind, fit in zip(invalid_ind, list(fitnesses.result())):
+    #        ind.fitness.values = fit
+
+    #else:        
     for ind, fit in zip(invalid_ind, fitnesses):
         ind.fitness.values = fit
 
@@ -223,8 +228,8 @@ def eaAlphaMuPlusLambdaCheckpoint(
         offspring = _get_offspring(parents, toolbox, cxpb, mutpb, mu, wild=True)
         #offspring.extend(offspring2)
         population = parents + offspring
-        if ELITISM:
-           population.append(halloffame[0])
+        #if ELITISM:
+        population.append(halloffame[0])
         flo = np.sum(halloffame[0].fitness.values)
         stopping_params.update({'hof':flo})
         stop = _check_stopping_criteria(stopping_criteria, stopping_params)
