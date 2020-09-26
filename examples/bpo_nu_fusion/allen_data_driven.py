@@ -178,11 +178,7 @@ class NUFeatureAllenMultiSpike(object):
         '''    
 
         feature_name = self.test.name
-        #rint(feature_name)
-        #Spikecount_1.5x
-        #delta0 = np.abs(features['Spikecount_3.0x']-np.mean(self.spike_obs[0]['mean']))
         delta1 = np.abs(features['Spikecount_1.5x']-np.mean(self.spike_obs[0]['mean']))
-        #print(delta1, 'should be zero',features['Spikecount_1.5x'],np.mean(self.spike_obs[0]['mean']))
         if feature_name not in features.keys():
             return 1000.0+(delta1)
         

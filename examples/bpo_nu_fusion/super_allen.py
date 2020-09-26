@@ -1,10 +1,12 @@
+import faulthandler; faulthandler.enable()
+'''
 import sys
 #sys.settrace 
 def trace(frame, event, arg):
     print("%s, %s:%d" % (event, frame.f_code.co_filename, frame.f_lineno))
     return trace
 sys.settrace(trace)
-
+'''
 import matplotlib.pyplot as plt
 plt.plot([1,0],[0,1])
 plt.show()
@@ -321,20 +323,18 @@ cell_evaluator2 = ephys.evaluators.CellEvaluator(
         fitness_calculator=score_calc2,
         sim='euler')
 
-MU = 15
+MU = 10
 
 optimisation = bpop.optimisations.DEAPOptimisation(
         evaluator=cell_evaluator2,
         offspring_size = MU,
-        map_function = dask_map_function,
+        map_function = map,
         selector_name='IBEA',mutpb=0.1,cxpb=0.35)
-final_pop, hall_of_fame, logs, hist = optimisation.run(max_ngen=30)
+final_pop, hall_of_fame, logs, hist = optimisation.run(max_ngen=100)
 cp = {}
 cp['final_pop'] = final_pop
 cp['hall_of_fame'] = hall_of_fame
 
-
-# In[ ]:
 
 
 
