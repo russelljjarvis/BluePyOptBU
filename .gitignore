@@ -1,4 +1,8 @@
 *.pyc
+ephys/__pycache__/*.pyc
+deapext/__pycache__/*.pyc
+deapext/tools/__pycache__/*.pyc
+ephys/examples/simplecell/__pycache__/*.pyc
 *.swp
 x86_64
 /bluepyopt.egg-info/
