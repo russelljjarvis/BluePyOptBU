@@ -1,18 +1,9 @@
 language: python
 matrix:
     include:
-        - python: 2.7
         - python: 3.6
         - python: 3.7
         - python: 3.8
-cache:
-    pip: true
-    directories:
-      - "$TRAVIS_BUILD_DIR/.tox"
-git:
-  depth: 2147483647
 before_install: 
   - pip install pip --upgrade
-  - pip install tox --upgrade
-  - pip install codecov
-script: tox -e "$(echo py$TRAVIS_PYTHON_VERSION | tr -d .)-unit-functional-style-syntax"
+  - pip install -r requirements.txt

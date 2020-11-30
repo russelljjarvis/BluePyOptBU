@@ -180,11 +180,11 @@ class SweepProtocol(Protocol):
             #except:
                 #import pdb
                 #pdb.set_trace()
-                
+
                 replace = {}
                 #cell_model.attrs = {}
                 for k,v in param_values.items():
-                    #cell_model.attrs[k] = 
+                    #cell_model.attrs[k] =
                     replace[k] = Parameter(k,value=param_values[k])
                 param_values = replace
                 cell_model.params = replace
@@ -193,9 +193,9 @@ class SweepProtocol(Protocol):
                 cell_model.freeze(param_values)
                 for k,v in cell_model.params.items():
                     cell_model.params[k] = float(v)
- 
+
                 #print('passed')
-                
+
                 #pass
             '''
             try:
@@ -209,7 +209,7 @@ class SweepProtocol(Protocol):
                 if not hasattr(cell_model,'NU'):
                     self.cvode_active = False
                     sim.run(self.total_duration, cvode_active=self.cvode_active)
-                
+
 
                 else:
                     '''
@@ -230,7 +230,14 @@ class SweepProtocol(Protocol):
                     attrs.update(copy.copy(param_values))
                     assert attrs is not None
                     assert len(param_values)
-                    dtc = cell_model.model_to_dtc(attrs=attrs) 
+                    dtc = cell_model.model_to_dtc(attrs=attrs)
+                    #dtc.attrs = param_values
+                    #print(dtc.attrs,'changing? 2')
+
+                    #print(dtc.attrs)
+                    #import pdb
+                    #pdb.set_trace()
+
                     if hasattr(cell_model,'allen'):
 
 
@@ -239,8 +246,9 @@ class SweepProtocol(Protocol):
                         if hasattr(cell_model,'seeded_current'):
                             dtc.seeded_current = cell_model.seeded_current
                             dtc.spk_count = cell_model.spk_count
-
                             dtc = three_step_protocol(dtc,known_current=cell_model.seeded_current)
+
+
                             vm = cell_model.inject_model()
                             if hasattr(dtc,'everything'):
                                 #print(dtc.everything['Spikecount_1.5x'],'broken?')
@@ -267,7 +275,7 @@ class SweepProtocol(Protocol):
                     else:
                         vm = cell_model.inject_model()
                         #from neuronunit.capabilities.spike_functions import get_spike_waveforms
-                        
+
                         #real_spike = get_spike_waveforms(vm)
                         #if real_spike:
                         responses = {'name':'rheobase_inj',
@@ -318,7 +326,7 @@ class SweepProtocol(Protocol):
 
         if isolate is None:
             isolate = True
-        '''    
+        '''
         def _reduce_method(meth):
             """Overwrite reduce"""
             return (getattr, (meth.__self__, meth.__func__.__name__))
@@ -337,7 +345,7 @@ class SweepProtocol(Protocol):
                 responses = {recording.name:
                 None for recording in self.recordings}
             '''
-       
+
             def _reduce_method(meth):
                 """Overwrite reduce"""
                 return (getattr, (meth.__self__, meth.__func__.__name__))
@@ -345,10 +353,10 @@ class SweepProtocol(Protocol):
             import copyreg
             import types
             copyreg.pickle(types.MethodType, _reduce_method)
-            
+
             import pebble
             from concurrent.futures import TimeoutError
-            
+
             if timeout is not None:
                 if timeout < 0:
                     raise ValueError("timeout should be > 0")
@@ -399,17 +407,17 @@ class SweepProtocol(Protocol):
                     #print(param_values)
 
                     try:
-                        
+
                     except:
                         print('gets into error but causes hang')
                         responses = {'None':None}
-                    
 
-                
+
+
                 logger.debug('SweepProtocol: task took longer than '
                                 'timeout, will return empty response '
                                 'for this recording')
-                
+
                 '''
         else:
             responses = self._run_func(cell_model=cell_model,
@@ -427,7 +435,7 @@ class SweepProtocol(Protocol):
                     #new_responses['neo_'+str(k)] = AnalogSignal(vm,
                     #                    units=pq.mV,
                     #                    sampling_period=0.025*pq.ms)
-                    
+
                     new_responses['neo_'+str(k)] = AnalogSignal(vm,units=pq.mV,sampling_period=(1/0.01255)*pq.s)
 
 
@@ -438,7 +446,7 @@ class SweepProtocol(Protocol):
                 train_len = len(sf.get_spike_train(new_responses['neo_'+str(k)]))
                 if train_len>0:
                     pass
- 
+
 
         responses.update(new_responses)
         return responses

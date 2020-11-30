@@ -18,6 +18,158 @@ PASSIVE_DURATION = 500.0*pq.ms
 PASSIVE_DELAY = 200.0*pq.ms
 import sciunit
 import numpy as np
+from bluepyopt.parameters import Parameter
+
+from neuronunit.optimisation.optimization_management import TSD
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def glif_specific_modifications(tests):
+
+    '''
+    Now appropriate for all tests
+    '''
+    tests = TSD(tests)
+    #tests.pop('RheobaseTest',None)
+    tests.pop('InjectedCurrentAPAmplitudeTest',None)
+    tests.pop('InjectedCurrentAPThresholdTest',None)
+    tests.pop('InjectedCurrentAPWidthTest',None)
+    #tests.pop('InputResistanceTest',None)
+    #tests.pop('CapacitanceTest',None)
+    #tests.pop('TimeConstantTest',None)
+
+    
+
+    return tests
+
+
+
+def l5pc_specific_modifications(tests):
+    tests = TSD(tests)
+    tests.pop('InputResistanceTest',None)
+    tests.pop('CapacitanceTest',None)
+    tests.pop('TimeConstantTest',None)
+    #tests.pop('RestingPotentialTest',None)
+    
+
+    return tests
+
+import streamlit as st
+def make_evaluator(nu_tests,
+                    MODEL_PARAMS,
+                    experiment=str('Neocortex pyramidal cell layer 5-6'),
+                    model=str('ADEXP')):
+    objectives = []
+
+
+    nu_tests[0].score_type = ZScore
+    simple_cell = ephys.models.ReducedCellModel(
+        name='simple_cell',
+        params=MODEL_PARAMS[model],backend=model)  
+
+
+    if "GLIF" in model:
+        nu_tests_ = glif_specific_modifications(nu_tests)
+        nu_tests = list(nu_tests_.values())
+        simple_cell.name = "GLIF"
+
+    elif "L5PC" in model:
+        nu_tests_ = l5pc_specific_modifications(nu_tests)
+        nu_tests = list(nu_tests_.values())
+        simple_cell.name = "L5PC"
+
+    else:
+        simple_cell.name = model+experiment
+    simple_cell.backend = model
+    simple_cell.params = {k:np.mean(v) for k,v in simple_cell.params.items() }
+
+    lop={}
+    for k,v in MODEL_PARAMS[model].items():
+        p = Parameter(name=k,bounds=v,frozen=False)
+        lop[k] = p
+
+    simple_cell.params = lop
+
+    for tt in nu_tests:
+        feature_name = tt.name
+        ft = NUFeature_standard_suite(tt,simple_cell)
+        objective = ephys.objectives.SingletonObjective(
+            feature_name,
+            ft)
+        objectives.append(objective)
+
+    score_calc = ephys.objectivescalculators.ObjectivesCalculator(objectives) 
+
+
+    sweep_protocols = []
+    for protocol_name, amplitude in [('step1', 0.05)]:
+        protocol = ephys.protocols.SweepProtocol(protocol_name, [None], [None])
+        sweep_protocols.append(protocol)
+    twostep_protocol = ephys.protocols.SequenceProtocol('twostep', protocols=sweep_protocols)
+
+    cell_evaluator = ephys.evaluators.CellEvaluator(
+            cell_model=simple_cell,
+            param_names=MODEL_PARAMS[model].keys(),
+            fitness_protocols={twostep_protocol.name: twostep_protocol},
+            fitness_calculator=score_calc,
+            sim='euler')
+    simple_cell.params_by_names(MODEL_PARAMS[model].keys())
+    return cell_evaluator, simple_cell, score_calc , [tt.name for tt in nu_tests]
+
+
+def trace_explore_widget(optimal_model_params=None):
+  '''
+  move this to utils file.
+  Allow app user to explore model behavior around the optimal, 
+  by panning across parameters and then viewing resulting spike shapes.
+  '''
+
+  attrs = {k:np.mean(v) for k,v in MODEL_PARAMS["IZHI"].items()}
+  plt.clf()
+  cnt=0
+  slider_value = st.slider(
+  "parameter a", min_value=0.01, max_value=0.1, value=0.05, step=0.001
+  )
+  if optimal_model_params is None:
+    dtc = DataTC(backend="IZHI",attrs=attrs)
+  else:
+    dtc = DataTC(backend="IZHI",attrs=optimal_model_params)
+  dtc.attrs['a'] = slider_value
+  dtc = dtc_to_rheo(dtc)
+  temp_rh = dtc.rheobase
+  model = dtc.dtc_to_model()
+  model.attrs = model._backend.default_attrs
+  model.attrs.update(dtc.attrs)
+
+  uc = {'amplitude':temp_rh,'duration':DURATION,'delay':DELAY}
+  model._backend.inject_square_current(uc)
+  vm = model.get_membrane_potential()
+  plt.plot(vm.times,vm.magnitude) 
+
+  cnt+=1
+  st.pyplot()
+
+def basic_expVar(trace1, trace2):
+    # https://github.com/AllenInstitute/GLIF_Teeter_et_al_2018/blob/master/query_biophys/query_biophys_expVar.py
+    '''This is the fundamental calculation that is used in all different types of explained variation.  
+    At a basic level, the explained variance is calculated between two traces.  These traces can be PSTH's
+    or single spike trains that have been convolved with a kernel (in this case always a Gaussian)
+    Input:
+        trace 1 & 2:  1D numpy array containing values of the trace.  (This function requires numpy array
+                        to ensure that this is not a multidemensional list.)
+    Returns:
+        expVar:  float value of explained variance
+    '''
+    
+    var_trace1=np.var(trace1)
+    var_trace2=np.var(trace2)
+    var_trace1_minus_trace2=np.var(trace1-trace2)
+
+    if var_trace1_minus_trace2 == 0.0:
+        return 1.0
+    else:
+        return (var_trace1+var_trace2-var_trace1_minus_trace2)/(var_trace1+var_trace2)
 def hof_to_euclid(hof,MODEL_PARAMS,target):
     lengths = {}
     tv = 1
@@ -130,7 +282,10 @@ def initialise_test(v,rheobase):
         
     return v
 from sciunit.scores import ZScore
-class NUFeature(object):
+import bluepyopt as bpop
+import bluepyopt.ephys as ephys
+
+class NUFeature_standard_suite(object):
     def __init__(self,test,model):
         self.test = test
         self.model = model
@@ -148,7 +303,7 @@ class NUFeature(object):
             try:
                 score_gene = self.test.judge(model)
             except:
-                print(self.test.observation,self.test.name)
+                #print(self.test.observation,self.test.name)
                 #print(score_gene,'\n\n\n')
 
                 return 100.0
@@ -169,8 +324,8 @@ class NUFeature(object):
 
                     lns = np.abs(np.float(score_gene.raw))    
             else:
-                print(prediction,self.test.observation)
-                print(score_gene,'\n\n\n')
+                #print(prediction,self.test.observation)
+                #print(score_gene,'\n\n\n')
                 lns = 100
         if lns==np.inf:
             lns = np.abs(np.float(score_gene.raw))
