@@ -2,7 +2,6 @@ dask
 lxml==4.4.1
 elephant==0.4.1
 mock==3.0.5
-libNeuroML==0.2.47
 tqdm==4.48.2
 neo==0.5.2
 plotly==4.5.2
@@ -10,10 +9,9 @@ allensdk==0.16.3
 simplejson==3.17.0
 future==0.17.1
 streamlit
-asciiplotlib==0.2.3
 pandas==1.1.0
-matplotlib==3.1.1
-seaborn==0.9.0
+matplotlib
+seaborn
 quantities==0.12.4
 Jinja2==2.10.3
 Pebble==4.5.3
@@ -27,12 +25,12 @@ tqdm==4.48.2
 maps==5.1.1
 allensdk==0.16.3
 natsort==7.0.1
-efel==3.0.72
 nbformat==4.4.0
 quantities==0.12.4
 dask[bag]
 fsspec>=0.3.3
 # numpy
+# efel==3.0.72
 # asciiplotlib==0.2.3
 # git+https://github.com/scidash/sciunit@dev
 # git+https://github.com/russelljjarvis/neuronunit
