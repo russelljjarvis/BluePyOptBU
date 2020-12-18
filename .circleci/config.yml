@@ -22,7 +22,7 @@ jobs:
       - run: conda config --set always_yes true
       - run: conda config --set quiet true
       - run: conda install conda-build
-      - run: conda build devtools/conda-recipe --python=3.6 --no-test
+      - run: which pip
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git
 
       #- store_artifacts:
@@ -53,6 +53,7 @@ jobs:
       - run: conda config --set always_yes true
       - run: conda config --set quiet true
       - run: conda install conda-build
+      - run: which pip
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git
       - attach_workspace:
           # Must be absolute path or relative path from working_directory
