@@ -32,12 +32,12 @@ jobs:
           name: conda
           command: sudo conda install scipy;
 
-      - run:
-          command: sudo pip install pip --upgrade; sudo pip install -r requirements.txt;
-          name: install
-      - run:
-          name: more
-          command: sudo python setup.py install;
+      #- run:
+      #    command: sudo pip install pip --upgrade; sudo pip install -r requirements.txt;
+      #    name: install
+      #- run:
+      #    name: more
+      #    command: sudo python setup.py install;
 
 workflows:
   main:
