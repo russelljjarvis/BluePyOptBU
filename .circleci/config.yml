@@ -24,7 +24,7 @@ jobs:
       - run: conda install conda-build
       - run: which pip
       - run: conda install scipy;
-      - run: pip install pip --upgrade; sudo pip install -r requirements.txt;
+      - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
 
 
@@ -54,5 +54,5 @@ jobs:
       - run: conda install conda-build
       - run: which pip
       - run: conda install scipy;
-      - run: pip install pip --upgrade; sudo pip install -r requirements.txt;
+      - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
