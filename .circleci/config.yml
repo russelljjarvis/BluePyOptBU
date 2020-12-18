@@ -22,9 +22,9 @@ jobs:
     executor: python/default
     steps:
       - checkout
-      - python/load-cache
-      - python/install-deps
-      - python/save-cache
+      #- python/load-cache
+      #- python/install-deps
+      #- python/save-cache
       - run:
           name: numba
           command: sudo sudo pip install git+https://github.com/russelljjarvis/jit_hub.git;
