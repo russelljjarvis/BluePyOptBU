@@ -30,7 +30,7 @@ jobs:
           command: sudo sudo pip install git+https://github.com/russelljjarvis/jit_hub.git;
       - run:
           name: conda
-          command: sudo sudo conda install scipy;
+          command: sudo conda install scipy;
 
       - run:
           command: sudo pip install pip --upgrade; sudo pip install -r requirements.txt;
