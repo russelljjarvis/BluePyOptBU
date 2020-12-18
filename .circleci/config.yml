@@ -1,16 +1,4 @@
 
-machine:
-  environment:
-    MINICONDA: "$HOME/miniconda"
-    MINICONDA_PATH: "$MINICONDA/bin"
-    PATH: "$MINICONDA_PATH:$PATH"
-    CONDA: "$MINICONDA_PATH/conda"
-    ANACONDA: "$MINICONDA_PATH/anaconda"
-    # This ensures we don't accidentally pull in ~/.condarc
-    # if it happens to be there for some strange reason
-    CONDARC: "$MINICONDA/condarc.none"
-
-version: 2.1
 
 orbs:
   python: circleci/python@0.3.2
@@ -22,19 +10,20 @@ jobs:
     executor: python/default
     steps:
       - checkout
-      #s- python/load-cache
+      - python/load-cache
       #- python/install-dep
       #- python/save-cache
       - run:
           name: numba
-          command: sudo pip install git+https://github.com/russelljjarvis/jit_hub.git;
+          command: pip install git+https://github.com/russelljjarvis/jit_hub.git;
       - run:
           name: conda
           command: sudo conda install scipy;
 
-      #- run:
-      #    command: sudo pip install pip --upgrade; sudo pip install -r requirements.txt;
-      #    name: install
+      - run:
+          name: install
+          command: sudo pip install pip --upgrade; sudo pip install -r requirements.txt;
+
       #- run:
       #    name: more
       #    command: sudo python setup.py install;
