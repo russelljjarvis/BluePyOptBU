@@ -23,9 +23,9 @@ jobs:
       - run: conda config --set quiet true
       - run: conda install conda-build
       - run: which pip
-      - run: pip install git+https://github.com/russelljjarvis/jit_hub.git
       - run: conda install scipy;
       - run: pip install pip --upgrade; sudo pip install -r requirements.txt;
+      - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
 
 
       #- store_artifacts:
@@ -53,6 +53,6 @@ jobs:
       - run: conda config --set quiet true
       - run: conda install conda-build
       - run: which pip
-      - run: pip install git+https://github.com/russelljjarvis/jit_hub.git
       - run: conda install scipy;
       - run: pip install pip --upgrade; sudo pip install -r requirements.txt;
+      - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
