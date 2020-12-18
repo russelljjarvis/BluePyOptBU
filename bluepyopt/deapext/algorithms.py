@@ -1,3 +1,4 @@
+
 """Optimisation class"""
 
 """
@@ -16,7 +17,7 @@ Copyright (c) 2016, EPFL/Blue Brain Project
 
  You should have received a copy of the GNU Lesser General Public License
  along with this library; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ 51 Franklin Street, Fifth Floor, Boston, MA 021101301 USA.
 """
 
 # pylint: disable=R0914, R0912
@@ -33,6 +34,9 @@ from tqdm.auto import tqdm
 
 from .stoppingCriteria import MaxNGen
 from deap.tools import cxSimulatedBinary
+from deap import tools, gp
+import random
+import streamlit as st
 
 logger = logging.getLogger('__main__')
 DASK = False
@@ -44,7 +48,7 @@ def _evaluate_invalid_fitness(toolbox, population):
     '''
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
     eval_ = toolbox.evaluate
-    #lazy = dask.delayed((eval_)(ind) for ind in invalid_ind)            
+    #lazy = dask.delayed((eval_)(ind) for ind in invalid_ind)
     #try:
     #    fitnesses = list(dask.compute(lazy))
     #except:
@@ -53,9 +57,11 @@ def _evaluate_invalid_fitness(toolbox, population):
     #    for ind, fit in zip(invalid_ind, list(fitnesses.result())):
     #        ind.fitness.values = fit
 
-    #else:        
+    #else:
     for ind, fit in zip(invalid_ind, fitnesses):
         ind.fitness.values = fit
+        #print(fit,'fitnesses odd?')
+    #print('fitnesses odd?',[fit for fit in fitnesses])
 
     return len(invalid_ind)
 
@@ -63,7 +69,7 @@ def _evaluate_invalid_fitness(toolbox, population):
 def _update_history_and_hof(halloffame, history, population):
     '''Update the hall of fame with the generated individuals
 
-    Note: History and Hall-of-Fame behave like dictionaries
+    Note: History and HallofFame behave like dictionaries
     '''
     if halloffame is not None:
         halloffame.update(population)
@@ -76,15 +82,17 @@ def _record_stats(stats, logbook, gen, population, invalid_count):
     record = stats.compile(population) if stats is not None else {}
     logbook.record(gen=gen, nevals=invalid_count, **record)
 
-from deap import tools, gp
-import random
-
-import streamlit as st
 
 
 def _get_offspring(parents, toolbox, cxpb, mutpb, mu, wild=False):
     children = deap.algorithms.varOr(parents, toolbox, int(mu), cxpb, mutpb)
-
+    for chromosome in children:
+        for gene in chromosome:
+            try:
+                assert not np.isnan(gene)
+            except:
+                print(np.isnan(gene),gene)
+    # TODO restore time varying eta
 
     #if hasattr(toolbox, 'variate'):
     #    return toolbox.variate(parents, toolbox, cxpb, mutpb)
@@ -100,34 +108,34 @@ def _get_offspring(parents, toolbox, cxpb, mutpb, mu, wild=False):
     '''
     if wild:
         parents = toolbox.clone(parents)
-    
+
         children = []
-        for ind1,ind2 in zip(parents[1:-1],parents[0:-2]):
+        for ind1,ind2 in zip(parents[1:1],parents[0:2]):
             op_choice = random.random()
             if random.random() < cxpb:
-                #if op_choice < cxpb:      
-            
+                #if op_choice < cxpb:
+
                 lower = toolbox.uniformparams.args[0][0]
                 upper = toolbox.uniformparams.args[1][0]
                 ind3 = tools.cxSimulatedBinaryBounded(ind1, ind2, 0.75,lower,upper)
                 #gp.cxOnePointLeafBiased(ind1, ind2, 0.9)
                 try:
-                    del ind3[0].fitness.values #= False    
+                    del ind3[0].fitness.values #= False
                     del ind3[1].fitness.values # = False
                 except:
                     pass
                 children.append(ind3[0])
                 children.append(ind3[1])
     else:
-    '''    
+    '''
     '''
     children = []
-    for ind1,ind2 in zip(parents[1:-1],parents[0:-2]):
+    for ind1,ind2 in zip(parents[1:1],parents[0:2]):
         lower = toolbox.uniformparams.args[0][0]
         upper = toolbox.uniformparams.args[1][0]
         ind3 = tools.cxSimulatedBinaryBounded(ind1, ind2, 0.9,lower,upper)
         try:
-            del ind3[0].fitness.values #= False    
+            del ind3[0].fitness.values #= False
             del ind3[1].fitness.values # = False
         except:
             pass
@@ -220,31 +228,28 @@ def eaAlphaMuPlusLambdaCheckpoint(
     # Begin the generational process
     gen = start_gen + 1
     stopping_params = {"gen": gen}
-        
+
     pbar = tqdm(total=ngen)
     while not(_check_stopping_criteria(stopping_criteria, stopping_params)):
-        
-        #offspring = _get_offspring(parents, toolbox, cxpb, mutpb, mu/3, wild=False)
-        offspring = _get_offspring(parents, toolbox, cxpb, mutpb, mu, wild=True)
-        #offspring.extend(offspring2)
+        #print(parents,'parents')
+        offspring = _get_offspring(parents, toolbox, cxpb, mutpb, mu)#, wild=False)
+
         population = parents + offspring
-        #if ELITISM:
         population.append(halloffame[0])
         flo = np.sum(halloffame[0].fitness.values)
         stopping_params.update({'hof':flo})
         stop = _check_stopping_criteria(stopping_criteria, stopping_params)
-        
-        #print(flo,halloffame[0].fitness.values,'inside')
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
-        
+
         _update_history_and_hof(halloffame, history, population)
-        best_vs_gen.append(halloffame[0])
+        #best_vs_gen.append(halloffame[0])
         _record_stats(stats, logbook, gen, population, invalid_count)
 
-        # Select the next generation parents
-        parents = toolbox.select(population, mu)
-        #if ELITISM:
-        #    parents.append(halloffame[0])
+        ##
+        # Throw away unfit genes
+        ##
+        parents = toolbox.select(population, int(mu/4))
+        #parents.append(halloffame[0])
         logger.info(logbook.stream)
 
         if(cp_filename and cp_frequency and
@@ -260,7 +265,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
             logger.debug('Wrote checkpoint to %s', cp_filename)
         current_prog = gen / ngen
         prog_bar.progress(current_prog)
- 
+
         gen += 1
         stopping_params["gen"] = gen
         pbar.update(1)

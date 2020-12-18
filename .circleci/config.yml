@@ -1,22 +1,33 @@
 version: 2.1
 
 orbs:
-  python: circleci/python@0.3.2
-python:
-  version: 3.5.1
+  python: circleci/python@0.2.1
 
 jobs:
-  build-docker:
-    machine: true
+  build-and-test:
+    executor: python/default
     steps:
       - checkout
-      # start proprietary DB using private Docker image
-      # with credentials stored in the UI
-      # build the application image
-      - run: docker build -t opt_app .
-      - run: docker run -d -p 127.0.0.1:80:80 --name opt_app opt_app
-      - run: docker ps | grep -q opt_app
+      - python/load-cache
+      - python/install-deps
+      - python/save-cache
+
+      - run:
+          name: "Setup custom environment variables"
+          command: echo 'export MY_ENV_VAR="CIRCLE"' >> $BASH_ENV
+      - run: # print the name of the branch we're on
+          command: echo ${CIRCLE_BRANCH}
+          name: "What branch am I on?"
+      - run:
+          command: sudo pip install pip --upgrade; sudo pip install -r requirements.txt;
+          name: install
+      - run:
+          name: more install
+          command: sudo python setup.py install;
+          name: numba install
+          command: sudo sudo pip install git+https://github.com/russelljjarvis/jit_hub.git;
+
 workflows:
   main:
     jobs:
-      - build-docker
+      - build-and-test

@@ -16,7 +16,7 @@ else:
     heroku = True
 import pickle
 experimental_constraints = pickle.load(open("../data_driven/processed_multicellular_constraints.p","rb"))
-olfactory_bulb_constraints = pickle.load(open("olf_tests.p","rb"))
+#olfactory_bulb_constraints = pickle.load(open("olf_tests.p","rb"))
 
 import utils
 import streamlit as st

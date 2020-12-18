@@ -45,10 +45,10 @@ from scipy.stats import norm
 #from utils import plot_as_normal
 from neuronunit.optimisation.optimization_management import instance_opt
 from neuronunit.optimisation.optimization_management import plot_as_normal
-
+from neuronunit.tests import *
 def make_allen():
   import quantities as qt
-  from neuronunit.tests import *
+
   from sciunit import TestSuite
 
   from sciunit.scores import ZScore, RatioScore

@@ -31,7 +31,7 @@ from bluepyopt.ephys.models import ReducedCellModel
 import numpy
 from neuronunit.optimisation.optimization_management import test_all_objective_test
 from neuronunit.optimisation.optimization_management import check_binary_match, three_step_protocol,inject_and_plot_passive_model
-from neuronunit.optimisation.model_parameters import MODEL_PARAMS
+from neuronunit.optimisation.model_parameters import MODEL_PARAMS, BPO_PARAMS
 import copy
 
 import numpy as np
@@ -64,13 +64,12 @@ simple_yes_list = ['spike_times'
     'time_to_second_spike',
     'trace_check']
 
-def opt_setup(specimen_id,cellmodel,target_num):
-    try:
-        assert 1==2
+def opt_setup(specimen_id,cellmodel,target_num,provided_model = None,cache=None,fixed_current=False):
+    if cache is not None:
         with open(str(specimen_id)+'later_allen_NU_tests.p','rb') as f:
             suite = pickle.load(f)
 
-    except:
+    else:
 
         sweep_numbers,data_set,sweeps = make_allen_tests_from_id.allen_id_to_sweeps(specimen_id)
         vmm,stimulus,sn,spike_times = make_allen_tests_from_id.get_model_parts_sweep_from_spk_cnt(target_num,data_set,sweep_numbers,specimen_id)
@@ -78,60 +77,50 @@ def opt_setup(specimen_id,cellmodel,target_num):
         with open(str(specimen_id)+'later_allen_NU_tests.p','wb') as f:
             pickle.dump(suite,f)
 
-
-
-    target = StaticModel(vm=suite.traces['vm15']) #DataTC(backend="IZHI")
-    #target.vm30 = suite.traces['vm30']
+    target = StaticModel(vm=suite.traces['vm15'])
     target.vm15 = suite.traces['vm15']
-
     nu_tests = suite.tests;
+
     check_bin_vm15(target,target)
-
-
     attrs = {k:np.mean(v) for k,v in MODEL_PARAMS[cellmodel].items()}
     dtc = DataTC(backend=cellmodel,attrs=attrs)
     for t in nu_tests:
-        #print(t.name)
         if t.name == 'Spikecount_1.5x':
             spk_count = float(t.observation['mean'])
-            #print(spk_count,'spike_count')
             break
-            #target_num
     observation_range={}
     observation_range['value'] = spk_count
-    scs = SpikeCountSearch(observation_range)
+    #if provided_model is not None:
+    #    model = provided_model
+    #else:
+    #    model = dtc.dtc_to_model()
+
+    if provided_model is None:
+        provided_model = ephys.models.ReducedCellModel(
+                name='simple_cell',
+                params=BPO_PARAMS[cellmodel],backend=cellmodel)
+        provided_model.params = {k:np.mean(v) for k,v in model.params.items() }
+
+    provided_model.backend = cellmodel
+    provided_model.allen = None
+    provided_model.allen = True
+    model = provided_model
+    #print(model.params)
+
+
+    if fixed_current:
+        uc = {'amplitude':fixed_current,'duration':ALLEN_DURATION,'delay':ALLEN_DELAY}
+        target_current = None
+    else:
+        scs = SpikeCountSearch(observation_range)
+        target_current = scs.generate_prediction(provided_model)
+        ALLEN_DELAY = 1000.0*qt.s
+        ALLEN_DURATION = 2000.0*qt.s
+        uc = {'amplitude':target_current['value'],'duration':ALLEN_DURATION,'delay':ALLEN_DELAY}
+        #tg = target_current['value']
+
     model = dtc.dtc_to_model()
-    target_current = scs.generate_prediction(model)
-    #model.inject_square_current()
-
-    ALLEN_DELAY = 1000.0*qt.s
-    ALLEN_DURATION = 2000.0*qt.s
-
-
-    uc = {'amplitude':target_current['value'],'duration':ALLEN_DURATION,'delay':ALLEN_DELAY}
-    model = dtc.dtc_to_model()
-
-    model.inject_square_current(uc)
-    #vm15 = model.get_membrane_potential()
-    #print(model.get_spike_count(),'spikes')
-
-
-    tg = target_current['value']
-    MODEL_PARAMS[cellmodel]#["current_inj"] = [tg-0.25*tg,tg+0.25*tg]
-
-    simple_cell = ephys.models.ReducedCellModel(
-            name='simple_cell',
-            params=MODEL_PARAMS[cellmodel],backend=cellmodel)
-    simple_cell.backend = cellmodel
-    simple_cell.allen = None
-    simple_cell.allen = True
-
-
-    model = simple_cell
-    model.params = {k:np.mean(v) for k,v in model.params.items() }
-
-    features = None
-    allen = True
+    model._backend.inject_square_current(**uc)
 
 
 
@@ -147,49 +136,47 @@ class NUFeatureAllenMultiSpike(object):
         self.target = target
         self.print_stuff = print_stuff
     def calculate_score(self,responses):
-        #print(responses.keys())
-        #import pdb
-        #pdb.set_trace()
+
         if not 'features' in responses.keys():# or not 'model' in responses.keys():
             return 1000.0
         features = responses['features']
+        #print(features.keys())
+        #print(features.values())
+
         if features is None:
             return 1000.0
-        #check_list = self.check_list
-
         self.test.score_type = ZScore
-
         feature_name = self.test.name
-        #print(features.keys())
-        #delta1 = np.abs(features['Spikecount_1.5x']-np.mean(self.spike_obs[0]['mean']))
         if feature_name not in features.keys():
-            return 1000.0#+(delta1)
+            return 1000.0
 
         if features[feature_name] is None:
-            return 1000.0#+(delta1)
-
+            return 1000.0
         if type(features[self.test.name]) is type(Iterable):
             features[self.test.name] = np.mean(features[self.test.name])
         self.test.observation['std'] = np.abs(np.mean(self.test.observation['mean']))
         self.test.observation['mean'] = np.mean(self.test.observation['mean'])
         self.test.set_prediction(np.mean(features[self.test.name]))
 
-        #if 'Spikecount_3.0x'==feature_name or
         if 'Spikecount_1.5x'==feature_name:
             delta = np.abs(features[self.test.name]-np.mean(self.test.observation['mean']))
             if np.nan==delta or delta==np.inf:
                 delta = 1000.0
-
-
             return delta
         else:
             if features[feature_name] is None:
-                return 1000.0#+(delta1)
-            self.test.score_type = RatioScore
+                return 1000.0
+
+            ###
+            # Ratio score breaks this for unknown reasons.
+            ###
+            self.test.score_type = ZScore
             score_gene = self.test.feature_judge()
+            #print(score_gene)
             if score_gene is not None:
                 if score_gene.raw is not None:
                     delta = np.abs(float(score_gene.raw))
+                    #print('legitimate fitness',delta)
                 else:
                     delta = None
 
@@ -207,7 +194,7 @@ class NUFeatureAllenMultiSpike(object):
             if np.nan==delta or delta==np.inf:
                 delta = 1000.0
             return delta
-def opt_setup_two(model, cellmodel, suite, nu_tests, target_current, spk_count):
+def opt_setup_two(model, cellmodel, suite, nu_tests, target_current, spk_count,provided_model = None):
     objectives = []
     spike_obs = []
     for tt in nu_tests:
@@ -218,7 +205,6 @@ def opt_setup_two(model, cellmodel, suite, nu_tests, target_current, spk_count):
             spike_obs.append(tt.observation)
     spike_obs = sorted(spike_obs, key=lambda k: k['mean'],reverse=True)
 
-    #check_list["RheobaseTest"] = target.rheobase['value']
     for cnt,tt in enumerate(nu_tests):
         feature_name = '%s' % (tt.name)
         #if feature_name in specific_filter_list:
@@ -235,18 +221,19 @@ def opt_setup_two(model, cellmodel, suite, nu_tests, target_current, spk_count):
 
     score_calc = ephys.objectivescalculators.ObjectivesCalculator(objectives)
 
-    lop={}
+    #lop={}
+    #for k,v in MODEL_PARAMS[cellmodel].items():
+    #    p = Parameter(name=k,bounds=v,frozen=False)
+    #    lop[k] = p
 
-    for k,v in MODEL_PARAMS[cellmodel].items():
-        p = Parameter(name=k,bounds=v,frozen=False)
-        lop[k] = p
-
-
-    simple_cell = ephys.models.ReducedCellModel(
-            name='simple_cell',
-            params=MODEL_PARAMS[cellmodel],backend=cellmodel)
+    if provided_model is None:
+        simple_cell = ephys.models.ReducedCellModel(
+                name='simple_cell',
+                params=BPO_PARAMS[cellmodel],backend=cellmodel)
+    else:
+        simple_cell = provided_model
     simple_cell.backend = cellmodel
-    simple_cell.params = lop
+    simple_cell.params = BPO_PARAMS[cellmodel]
     sweep_protocols = []
     for protocol_name, amplitude in [('step1', 0.05)]:
 
@@ -254,18 +241,17 @@ def opt_setup_two(model, cellmodel, suite, nu_tests, target_current, spk_count):
         sweep_protocols.append(protocol)
     onestep_protocol = ephys.protocols.SequenceProtocol('onestep', protocols=sweep_protocols)
 
-    simple_cell.params_by_names(MODEL_PARAMS[cellmodel].keys())
+    simple_cell.params_by_names(BPO_PARAMS[cellmodel].keys())
     simple_cell.params;
 
-    MODEL_PARAMS[cellmodel]
     cell_evaluator = ephys.evaluators.CellEvaluator(
             cell_model=simple_cell,
-            param_names=MODEL_PARAMS[cellmodel].keys(),
+            param_names=BPO_PARAMS[cellmodel].keys(),
             fitness_protocols={onestep_protocol.name: onestep_protocol},
             fitness_calculator=score_calc,
             sim='euler')
 
-    simple_cell.params_by_names(MODEL_PARAMS[cellmodel].keys())
+    simple_cell.params_by_names(BPO_PARAMS[cellmodel].keys())
     simple_cell.params;
     simple_cell.seeded_current = target_current['value']
     simple_cell.spk_count = spk_count
@@ -282,18 +268,28 @@ def opt_setup_two(model, cellmodel, suite, nu_tests, target_current, spk_count):
     score_calc2 = ephys.objectivescalculators.ObjectivesCalculator(objectives2)
 
 
-    simple_cell.params_by_names(MODEL_PARAMS[cellmodel].keys())
+    simple_cell.params_by_names(BPO_PARAMS[cellmodel].keys())
     simple_cell.params;
 
 
-    MODEL_PARAMS[cellmodel]
     cell_evaluator2 = ephys.evaluators.CellEvaluator(
             cell_model=simple_cell,
-            param_names=list(MODEL_PARAMS[cellmodel].keys()),
+            param_names=list(BPO_PARAMS[cellmodel].keys()),
             fitness_protocols={onestep_protocol.name: onestep_protocol},
             fitness_calculator=score_calc2,
             sim='euler')
     return cell_evaluator2,simple_cell
+
+
+MU = 20
+def multi_layered(MU,NGEN,mapping_funct,cell_evaluator2):
+    optimisation = bpop.optimisations.DEAPOptimisation(
+            evaluator=cell_evaluator2,
+            offspring_size = MU,
+            map_function = map,
+            selector_name='IBEA',mutpb=0.05,cxpb=0.6,current_fixed=from_outer)
+    final_pop, hall_of_fame, logs, hist = optimisation.run(max_ngen=NGEN)
+    return final_pop, hall_of_fame, logs, hist
 
 
 MU = 20
@@ -330,8 +326,8 @@ def opt_to_model(hall_of_fame,cell_evaluator2,suite, target_current, spk_count):
     target.spk_count = spk_count
 
 
-    vm301,vm151,_,target = inject_model30(target,known_current=target_current['value'])
-    vm302,vm152,_,opt = inject_model30(opt,known_current=target_current['value'])
+    vm301,vm151,_,target = inject_model30(target,solve_for_current=target_current['value'])
+    vm302,vm152,_,opt = inject_model30(opt,solve_for_current=target_current['value'])
     return opt,target
     '''
     #check_bin_vm30(opt,opt)

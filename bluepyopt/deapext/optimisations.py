@@ -43,6 +43,16 @@ logger = logging.getLogger('__main__')
 # TODO abstract the algorithm by creating a class for every algorithm, that way
 # settings of the algorithm can be stored in objects of these classes
 
+def meta_current_evaluator():
+    optimisation = bpop.optimisations.DEAPOptimisation(
+            evaluator=cell_evaluator2,
+            offspring_size = MU,
+            map_function = map,
+            selector_name='IBEA',mutpb=0.05,cxpb=0.6,current_fixed=from_outer)
+    final_pop, hall_of_fame, logs, hist = optimisation.run(max_ngen=NGEN)
+    meta_fitness = hall_of_fame[0]
+    return meta_fitness
+
 
 class WeightedSumFitness(deap.base.Fitness):
 
@@ -93,7 +103,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
 
     """DEAP Optimisation class"""
 
-    def __init__(self, 
+    def __init__(self,
                  evaluator=None,
                  use_scoop=False,
                  seed=1,
@@ -291,21 +301,205 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
             for ind,sd in zip(pop,self.seeded_pop[0]):
                 for i,j in enumerate(ind):
                     ind[i] = sd[i]
-            #self.hof = self.seeded_pop[1]
-            '''
-            replaced = []            
-            for ind,sd in zip(pop,self.seeded_pop[1]):
+            self.seeded_pop =  None
+
+        stats = deap.tools.Statistics(key=lambda ind: ind.fitness.sum)
+        import numpy
+        stats.register("avg", numpy.mean)
+        stats.register("std", numpy.std)
+        stats.register("min", numpy.min)
+        stats.register("max", numpy.max)
+
+        pop, hof, log, history = algorithms.eaAlphaMuPlusLambdaCheckpoint(
+            pop,
+            self.toolbox,
+            offspring_size,
+            self.cxpb,
+            self.mutpb,
+            max_ngen,
+            stats=stats,
+            halloffame=self.hof,
+            cp_frequency=cp_frequency,
+            continue_cp=continue_cp,
+            cp_filename=cp_filename)
+
+        # Update hall of fame
+        self.hof = hof
+
+        return pop, self.hof, log, history
+
+
+class CurrentSearchOptimisation(bluepyopt.optimisations.Optimisation):
+
+    """DEAP Optimisation class"""
+
+    def __init__(self,
+                 evaluator=None,
+                 seed=1,
+                 offspring_size=10,
+                 eta=10,
+                 mutpb=1.0,
+                 cxpb=1.0,
+                 map_function=None,
+                 hof=None,
+                 selector_name=None,
+                 seeded_pop= None):
+
+        super(DEAPOptimisation, self).__init__(evaluator=evaluator)
+
+        self.use_scoop = use_scoop
+        self.seed = seed
+        self.offspring_size = offspring_size
+        self.eta = eta
+        self.cxpb = cxpb
+        self.mutpb = mutpb
+        self.map_function = map_function
+        self.seeded_pop = seeded_pop
+        self.selector_name = selector_name
+        if self.selector_name is None:
+            self.selector_name = 'IBEA'
+
+        self.hof = hof
+        if self.hof is None:
+            self.hof = deap.tools.HallOfFame(10)
+
+        # Create a DEAP toolbox
+        self.toolbox = deap.base.Toolbox()
+
+        self.setup_deap()
+
+    def setup_deap(self):
+        """Set up optimisation"""
+
+        # Number of objectives
+        OBJ_SIZE = len(self.evaluator.objectives)
+
+        # Set random seed
+        random.seed(self.seed)
+
+        # Eta parameter of crossover / mutation parameters
+        # Basically defines how much they 'spread' solution around
+        # The lower this value, the more spread
+        ETA = self.eta
+
+        # current strength is the only parameters
+        IND_SIZE = 1
+
+        # Bounds for the parameters
+
+        LOWER = []
+        UPPER = []
+
+        for parameter in self.evaluator.params:
+            LOWER.append(parameter.lower_bound)
+            UPPER.append(parameter.upper_bound)
+
+        # Define a function that will uniformly pick an individual
+        def uniform(lower_list, upper_list, dimensions):
+            """Fill array """
+
+            if hasattr(lower_list, '__iter__'):
+                return [random.uniform(lower, upper) for lower, upper in
+                        zip(lower_list, upper_list)]
+            else:
+                return [random.uniform(lower_list, upper_list)
+                        for _ in range(dimensions)]
+
+        # Register the 'uniform' function
+        self.toolbox.register("uniformparams", uniform, LOWER, UPPER, IND_SIZE)
+
+        # Register the individual format
+        # An indiviual is create by WSListIndividual and parameters
+        # are initially
+        # picked by 'uniform'
+        self.toolbox.register(
+            "Individual",
+            deap.tools.initIterate,
+            functools.partial(WSListIndividual, obj_size=OBJ_SIZE),
+            self.toolbox.uniformparams)
+
+        # Register the population format. It is a list of individuals
+        self.toolbox.register(
+            "population",
+            deap.tools.initRepeat,
+            list,
+            self.toolbox.Individual)
+
+        # Register the evaluation function for the individuals
+        # import deap_efel_eval1
+        self.toolbox.register("evaluate", self.evaluator.evaluate_with_lists)
+
+        # Register the mate operator
+        self.toolbox.register(
+            "mate",
+            deap.tools.cxSimulatedBinaryBounded,
+            eta=ETA,
+            low=LOWER,
+            up=UPPER)
+
+        # Register the mutation operator
+        self.toolbox.register(
+            "mutate",
+            deap.tools.mutPolynomialBounded,
+            eta=ETA,
+            low=LOWER,
+            up=UPPER,
+            indpb=0.5)
+
+        # Register the variate operator
+        self.toolbox.register("variate", deap.algorithms.varAnd)
+
+        # Register the selector (picks parents from population)
+        if self.selector_name == 'IBEA':
+            self.toolbox.register("select", tools.selIBEA)
+        elif self.selector_name == 'NSGA2':
+            self.toolbox.register("select", deap.tools.emo.selNSGA2)
+        else:
+            raise ValueError('DEAPOptimisation: Constructor selector_name '
+                             'argument only accepts "IBEA" or "NSGA2"')
+        def _reduce_method(meth):
+            """Overwrite reduce"""
+            return (getattr, (meth.__self__, meth.__func__.__name__))
+
+        copyreg.pickle(types.MethodType, _reduce_method)
+
+        if self.use_scoop:
+            if self.map_function:
+                raise Exception(
+                    'Impossible to use scoop is providing self '
+                    'defined map function: %s' %
+                    self.map_function)
+
+            from scoop import futures
+            self.toolbox.register("map", futures.map)
+
+        elif self.map_function:
+            self.toolbox.register("map", self.map_function)
+
+    def run(self,
+            max_ngen=10,
+            offspring_size=None,
+            continue_cp=False,
+            cp_filename=None,
+            cp_frequency=1):
+        """Run optimisation"""
+        # Allow run function to override offspring_size
+        # TODO probably in the future this should not be an object field
+        # anymore
+        # keeping for backward compatibility
+        if offspring_size is None:
+            offspring_size = self.offspring_size
+
+        # Generate the population object
+        if self.seeded_pop is None:
+            pop = self.toolbox.population(n=offspring_size)
+
+
+        else:
+            pop = self.toolbox.population(n=offspring_size)
+            for ind,sd in zip(pop,self.seeded_pop[0]):
                 for i,j in enumerate(ind):
                     ind[i] = sd[i]
-                    for f in ind[i].fitness.values:
-                        f = 100
-                    replaced.append(ind)
-
-            self.hof = replaced
-            
-            import pdb
-            pdb.set_trace()
-            '''
             self.seeded_pop =  None
 
         stats = deap.tools.Statistics(key=lambda ind: ind.fitness.sum)

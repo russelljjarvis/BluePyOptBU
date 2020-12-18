@@ -42,6 +42,98 @@ def closest(lst, K):
      idx = (np.abs(lst - K)).argmin()
      return idx
 
+from elephant.statistics import isi
+from sklearn.linear_model import LinearRegression
+
+#def make_slope():
+
+
+
+
+def sweeps_build_fi_tests(data_set,sweep_numbers,specimen_id):
+    sweep_numbers = sweep_numbers['Square - 2s Suprathreshold']
+    rheobase = -1
+    above_threshold_sn = []
+    currents = {}
+    relation_map = {}
+    for sn in sweep_numbers:
+
+
+        spike_times = data_set.get_spike_times(sn)
+
+        if len(spike_times)>1:
+            isi_ = isi(spike_times)
+            rate = 1.0/np.mean(isi_)
+            sweep_data = data_set.get_sweep(sn)
+
+            current_stim = np.max(sweep_data['stimulus'])
+            relation_map[rate] = current_stim
+    model = LinearRegression()
+    x = np.array(list(relation_map.keys())).reshape(-1, 1)
+    y = np.array(list(relation_map.values())).reshape(-1, 1)
+    if len(x):
+        model.fit(x, y)
+        m = model.coef_*(qt.Hz/qt.pA)
+        if type(m) is type(list()):
+            m = m[0]
+        slope = m
+        plot=False
+        if plot:
+            c = model.intercept_
+            y = supra_thresh_I*float(m) +c
+            plt.figure()  # new figure
+            plt.plot(supra_thresh_I, fr)
+            plt.plot(supra_thresh_I, y)
+            plt.xlabel('Amplitude of Injecting step current (pA)')
+            plt.ylabel('Firing rate (Hz)')
+            plt.grid()
+            plt.show()
+    else:
+        slope = None
+    return slope
+
+
+    #return relation_map
+    '''
+    if len(spike_times) == 1:
+        if np.max(stimulus)> rheobase and rheobase==-1:
+            rheobase = np.max(stimulus)
+            stim = rheobase
+            currents['rh']=stim
+            sampling_rate = sweep_data['sampling_rate']
+            vmrh = AnalogSignal([v*1000 for v in sweep_data['response']],sampling_rate=sampling_rate*qt.Hz,units=qt.mV)
+            vmrh = vmrh[0:int(len(vmrh)/2.1)]
+    if len(spike_times) >= 1:
+        reponse = sweep_data['response']
+        sampling_rate = sweep_data['sampling_rate']
+        vmm = AnalogSignal([v*1000 for v in sweep_data['response']],sampling_rate=sampling_rate*qt.Hz,units=qt.mV)
+        vmm = vmm[0:int(len(vmm)/2.1)]
+        above_threshold_sn.append((np.max(stimulus),sn,vmm))
+if rheobase==-1:
+    rheobase = above_threshold_sn[0][0]
+    vmrh = above_threshold_sn[0][2]#AnalogSignal([v*1000 for v in sweep_data['response']],sampling_rate=sampling_rate*qt.Hz,units=qt.mV)
+    print(len(spike_times))
+myNumber = 3.0*rheobase
+currents_ = [t[0] for t in above_threshold_sn]
+indexvm30 = closest(currents_, myNumber)
+stim = above_threshold_sn[indexvm30][0]
+currents['30']=stim
+vm30 = above_threshold_sn[indexvm30][2]
+myNumber = 1.5*rheobase
+currents_ = [t[0] for t in above_threshold_sn]
+indexvm15 = closest(currents_, myNumber)
+stim = above_threshold_sn[indexvm15][0]
+currents['15']=stim
+vm15 = above_threshold_sn[indexvm15][2]
+vm15.sn = None
+vm15.sn = above_threshold_sn[0][1]
+vm15.specimen_id = None
+vm15.specimen_id = specimen_id
+
+del sweep_numbers
+del data_set
+return vm15,vm30,rheobase,currents,vmrh
+'''
 
 def get_rheobase(numbers,sets):
     rheobase_numbers = [sweep_number for sweep_number in numbers if len(sets.get_spike_times(sweep_number))==1]
@@ -175,6 +267,8 @@ def make_suite_known_sweep_from_static_models(vm15,stimulus,specimen_id):
     sm.vm15 = vm15
     sm.rheobase = np.max(stimulus)
     sm = efel_evaluation(sm,thirty=False)
+    #import pdb
+    #pdb.set_trace()
     sm = rekeyed(sm)
     useable = False
     sm.vmrh = vm15

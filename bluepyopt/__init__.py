@@ -35,14 +35,17 @@ import bluepyopt.deapext.optimisations
 # Add some backward compatibility for the time when DEAPoptimisation not in
 # deapext yet
 # TODO deprecate this
+
+import bluepyopt.deapext
+
 bluepyopt.optimisations.DEAPOptimisation = \
     bluepyopt.deapext.optimisations.DEAPOptimisation
 
 import bluepyopt.evaluators
 import bluepyopt.objectives
 import bluepyopt.parameters  # NOQA
-import bluepyopt.examples  # NOQA
-import bluepyopt.examples.app.utils  # NOQA
+import examples  # NOQA
+#import examples.app.utils  # NOQA
 
 # TODO let objects read / write themselves using json
 # TODO create 'Variables' class

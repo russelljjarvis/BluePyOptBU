@@ -85,7 +85,7 @@ class ReducedCellModel(VeryReducedModel,
             name,
             params=None,
             gid=0,
-            backend=None, 
+            backend=None,
             tests = None):
         """Constructor
 
@@ -104,7 +104,7 @@ class ReducedCellModel(VeryReducedModel,
         """
         #super(CellModel, self).__init__(name)
         super(VeryReducedModel, self).__init__(name=name,backend=backend)
-        
+
         #super(VeryReducedModel, self).__init__(name=name,backend=backend, attrs=attrs)
         self.backend = backend
         #self._backend = str('')
@@ -126,11 +126,11 @@ class ReducedCellModel(VeryReducedModel,
         """
         Args:
             self
-        Returns: 
+        Returns:
             dtc
             DTC is a simulator indipendent data transport container object.
         """
-            
+
         dtc = DataTC(backend=self.backend)
         if hasattr(self,'tests'):
             if type(self.tests) is not type(None):
@@ -164,7 +164,7 @@ class ReducedCellModel(VeryReducedModel,
 
     def inject_model(self,
                      DELAY=100,
-                     DURATION=500): 
+                     DURATION=500):
         dynamic_attrs = {str(k):float(v) for k,v in self.params.items()}
         #assert len(dynamic_attrs)
         frozen_attrs = self._backend.default_attrs
@@ -177,15 +177,15 @@ class ReducedCellModel(VeryReducedModel,
         #self.destroy()
         #print(all_attrs)
         assert len(dtc.attrs)
-        from neuronunit.optimisation.optimization_management import dtc_to_rheo  
+        from neuronunit.optimisation.optimization_management import dtc_to_rheo
 
         dtc = dtc_to_rheo(dtc)
 
         #super(VeryReducedModel, self).__init__(name=name,backend=backend)
 
         self.rheobase = dtc.rheobase
-            
-            
+
+
         vm = [np.nan]
         if self.rheobase is not None:
             uc = {'amplitude':self.rheobase,'duration':DURATION,'delay':DELAY}
@@ -196,10 +196,10 @@ class ReducedCellModel(VeryReducedModel,
                 self.vm = vm
             except:
                 vm = [np.nan]
-                #print('frozne',frozen_attrs,'dyn',dynamic_attrs,'self',self.attrs)            
+                #print('frozne',frozen_attrs,'dyn',dynamic_attrs,'self',self.attrs)
         else:
             self.vm = vm
-        return vm    
+        return vm
 
     def check_name(self):
         """Check if name complies with requirements"""
@@ -239,7 +239,7 @@ class ReducedCellModel(VeryReducedModel,
                 #self.params[param_name].freeze(param_value)
                 #self.params[param_name] = param_value
 
-                
+
     def unfreeze(self, param_names):
         """Unset params"""
 
@@ -259,13 +259,13 @@ class ReducedCellModel(VeryReducedModel,
         for k,v in self.params.items():
             if hasattr(v,'value'):
                 v = float(v.value)
-                
+
             dtc.attrs[k] = v
             self.attrs[k] = v
         return dtc
 
             #for param in self.params.values():
-            #    model.attrs[param] = 
+            #    model.attrs[param] =
                 #param.instantiate(sim=sim, icell=self.icell)
     def destroy(self, sim=None):  # pylint: disable=W0613
         """Destroy instantiated model in simulator"""
@@ -297,7 +297,7 @@ class ReducedCellModel(VeryReducedModel,
 
 
 from sciunit.models import Model as SciUnitModel
-from neuronunit.models.static import ExternalModel 
+from neuronunit.models.static import ExternalModel
 import quantities as pq
 
 class CellModel(Model):
@@ -397,8 +397,8 @@ class CellModel(Model):
         #protocol.stimuli[0].
         total_duration = float(current['delay']) + \
                         float(current['duration']) \
-                        + 200       
-        protocol.stimuli[0].total_duration = total_duration          
+                        + 200
+        protocol.stimuli[0].total_duration = total_duration
         fitness_calculator = l5pc_evaluator.define_fitness_calculator(fitness_protocols)
         param_names = [param for param in self.params.keys()]
 
@@ -409,7 +409,7 @@ class CellModel(Model):
             fitness_protocols=fitness_protocols,
             fitness_calculator=fitness_calculator,
             sim=sim)
-        response = evalu.run_protocol(evalu.fitness_protocols['Step3'],evalu.params)   
+        response = evalu.run_protocol(evalu.fitness_protocols['Step3'],evalu.params)
 
         return response
         
@@ -762,4 +762,3 @@ class NU_HocCellModel(HocCellModel,RunnableModel,
                                         mechs=[],
                                         params=[])
         self.NU = True
-
