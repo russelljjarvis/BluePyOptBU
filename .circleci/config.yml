@@ -15,20 +15,14 @@ jobs:
       - python/save-cache
 
       - run:
-          name: "Setup custom environment variables"
-          command: echo 'export MY_ENV_VAR="CIRCLE"' >> $BASH_ENV
-      - run: # print the name of the branch we're on
-          command: echo ${CIRCLE_BRANCH}
-          name: "What branch am I on?"
-      - run:
           command: sudo pip install pip --upgrade; sudo pip install -r requirements.txt;
           name: install
       - run:
-          name: more
-          command: sudo python setup.py install;
-      - run:
           name: numba
           command: sudo sudo pip install git+https://github.com/russelljjarvis/jit_hub.git;
+      - run:
+          name: more
+          command: sudo python setup.py install;
 
 workflows:
   main:
