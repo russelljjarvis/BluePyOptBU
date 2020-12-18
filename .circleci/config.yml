@@ -24,9 +24,10 @@ jobs:
           command: sudo pip install pip --upgrade; sudo pip install -r requirements.txt;
           name: install
       - run:
-          name: more install
+          name: more
           command: sudo python setup.py install;
-          name: numba install
+      - run:
+          name: numba
           command: sudo sudo pip install git+https://github.com/russelljjarvis/jit_hub.git;
 
 workflows:
