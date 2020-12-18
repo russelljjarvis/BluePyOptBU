@@ -22,12 +22,12 @@ jobs:
     executor: python/default
     steps:
       - checkout
-      #- python/load-cache
-      #- python/install-deps
+      #s- python/load-cache
+      #- python/install-dep
       #- python/save-cache
       - run:
           name: numba
-          command: sudo sudo pip install git+https://github.com/russelljjarvis/jit_hub.git;
+          command: sudo pip install git+https://github.com/russelljjarvis/jit_hub.git;
       - run:
           name: conda
           command: sudo conda install scipy;
