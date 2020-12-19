@@ -18,6 +18,7 @@ jobs:
     steps:
       - checkout
       - run: git fetch --unshallow || true
+      - run: apt-get install cpp
       - run: conda config --add channels conda-forge
       - run: conda config --set always_yes true
       - run: conda config --set quiet true
@@ -29,7 +30,6 @@ jobs:
       - run: conda install dask;
       - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
-      - run: apt-get install cpp
       - run: pip install -e .
 
 
@@ -56,6 +56,7 @@ jobs:
       - run: conda config --add channels conda-forge
       - run: conda config --set always_yes true
       - run: conda config --set quiet true
+      - run: apt-get install cpp
       - run: conda install conda-build
       - run: which pip
       - run: conda install scipy;
