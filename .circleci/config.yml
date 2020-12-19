@@ -18,7 +18,7 @@ jobs:
     steps:
       - checkout
       - run: git fetch --unshallow || true
-      - run: apt-get install -y cpp
+      - run: apt-get install -y cpp gcc
       - run: conda config --add channels conda-forge
       - run: conda config --set always_yes true
       - run: conda config --set quiet true
@@ -56,7 +56,7 @@ jobs:
       - run: conda config --add channels conda-forge
       - run: conda config --set always_yes true
       - run: conda config --set quiet true
-      - run: apt-get install -y cpp
+      - run: apt-get install -y cpp gcc
       - run: conda install conda-build
       - run: which pip
       - run: conda install scipy;
