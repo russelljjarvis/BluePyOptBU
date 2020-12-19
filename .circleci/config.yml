@@ -1,5 +1,5 @@
 defaults: &defaults
-  working_directory: ~/markovmodel/PyEMMA
+  working_directory: ~/
   docker:
     - image: continuumio/miniconda3
 
@@ -29,6 +29,7 @@ jobs:
       - run: conda install dask;
       - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
+      - run: apt-get install cpp
       - run: pip install -e .
 
 
@@ -60,5 +61,6 @@ jobs:
       - run: conda install scipy;
       - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
+      - run: apt-get install cpp
       - run: pip install -e .
       - run: python unittest/latest_file_adexp.py
