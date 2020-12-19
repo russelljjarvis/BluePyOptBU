@@ -29,6 +29,7 @@ jobs:
       - run: conda install numba;
       - run: conda install dask;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
+      - run: apt-get build-dep python-tables HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial/ && pip install tables
       - run: pip install git+https://github.com/russelljjarvis/neuronunit
       - run: apt-get install -y libx11-6 python-dev git build-essential
       - run: apt-get install -y autoconf automake gcc g++ make gfortran
@@ -64,6 +65,7 @@ jobs:
       - run: which pip
       - run: conda install scipy;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
+      - run: apt-get build-dep python-tables HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial/ && pip install tables
       - run: pip install git+https://github.com/russelljjarvis/neuronunit
       - run: apt-get update
       - run: apt-get install -y libx11-6 python-dev git build-essential
