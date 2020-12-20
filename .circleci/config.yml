@@ -31,11 +31,11 @@ jobs:
       - run: conda install numpy;
       - run: conda install numba;
       - run: conda install dask;
+      - run: echo "REDO 5"
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
       - run: pip install tables
       - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install -e .
-      - run: echo "REDO 4"
       - run: pip install git+https://github.com/russelljjarvis/neuronunit
       - run: python unittest/latest_file_adexp.py
 
@@ -60,9 +60,9 @@ jobs:
       - run: apt-get install -y autoconf automake gcc g++ make gfortran
       - run: conda install conda-build
       - run: conda install scipy;
-      - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
       - run: pip install tables
       - run: pip install git+https://github.com/russelljjarvis/neuronunit
+      - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
       - run: apt-get update
       - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install -e .
