@@ -38,6 +38,7 @@ jobs:
       - run: cd jit_hub; pip install -e .; cd ..;
       - run: pip install -e .
       - run: pip install git+https://github.com/russelljjarvis/neuronunit
+      - run: pip install cython
       - run: python unittest/latest_file_adexp.py
 
 
