@@ -19,6 +19,9 @@ jobs:
       - checkout
       - run: git fetch --unshallow || true
       - run: apt-get install -y cpp gcc
+      - run: apt-get install -y libx11-6 python-dev git build-essential
+      - run: apt-get install -y autoconf automake gcc g++ make gfortran
+      - run: apt-get install -y python-tables
       - run: conda config --add channels conda-forge
       - run: conda config --set always_yes true
       - run: conda config --set quiet true
@@ -29,12 +32,12 @@ jobs:
       - run: conda install numba;
       - run: conda install dask;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
-      - run: apt-get install -y python-tables
       - run: pip install tables
-      - run: apt-get install -y libx11-6 python-dev git build-essential
-      - run: apt-get install -y autoconf automake gcc g++ make gfortran
       - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install -e .
+      - run: pip install -e .
+      - run: python unittest/latest_file_adexp.py
+
 
 
       #- store_artifacts:
@@ -55,22 +58,20 @@ jobs:
 
     steps:
       - checkout
-
       - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
       - run: conda config --add channels conda-forge
       - run: conda config --set always_yes true
       - run: conda config --set quiet true
       - run: apt-get install -y cpp gcc
+      - run: apt-get install -y python-tables
+      - run: apt-get install -y libx11-6 python-dev git build-essential
+      - run: apt-get install -y autoconf automake gcc g++ make gfortran
       - run: conda install conda-build
-      - run: which pip
       - run: conda install scipy;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
-      - run: apt-get install -y python-tables
       - run: pip install tables
       - run: pip install git+https://github.com/russelljjarvis/neuronunit
       - run: apt-get update
-      - run: apt-get install -y libx11-6 python-dev git build-essential
-      - run: apt-get install -y autoconf automake gcc g++ make gfortran
       - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install -e .
       - run: python unittest/latest_file_adexp.py
