@@ -34,7 +34,7 @@ jobs:
       - run: echo "REDO 8"
       - run: pip install tables
       - run: pip install pip --upgrade; pip install -r requirements.txt;
-      - run: pip install git clone https://github.com/russelljjarvis/jit_hub.git@neuronunit
+      - run: git clone https://github.com/russelljjarvis/jit_hub.git@neuronunit
       - run: cd jit_hub; pip install -e .; cd ..;
       - run: pip install -e .
       - run: pip install git+https://github.com/russelljjarvis/neuronunit
