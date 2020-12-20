@@ -34,12 +34,6 @@ cellmodel = "ADEXP"
 # # TODO make a nested Genetic Algorithm where the outer loop explores different preferred currents.
 #
 # This will get rid of the oscillations.
-
-# In[2]:
-
-
-
-#cellmodel = "ADEXP";
 if cellmodel == "IZHI":
     model = model_classes.IzhiModel()
 if cellmodel == "MAT":
@@ -100,78 +94,25 @@ dtc._backend = model._backend
 
 dtc.attrs = model.attrs
 dtc.params = {k:np.mean(v) for k,v in MODEL_PARAMS[cellmodel].items()}
-dtc.attrs
-
-
-# In[6]:
-
 
 model = dtc.dtc_to_model()
-model.attrs
-
-#dir(model)
-#vm = model._backend.get_membrane_potential()
-#vm = model.get_membrane_potential()#
-
-
-# In[7]:
-
-
-model.params
-
-
-# In[8]:
 
 
 
 
 dtc = dtc_to_rheo(dtc)
-print(dtc.rheobase)
-print(dtc.backend)
-
-
-#dtc_to_rheo()
-
-
-# In[ ]:
-
 
 vm,plt,dtc = inject_and_plot_model(dtc,plotly=False)
-plt.show()
-print(dtc.rheobase)
-
-
-# In[ ]:
-
 
 fixed_current = 122 *qt.pA
 model.params
 
-
-# In[ ]:
-
-
-model.params
-model.backend
 model, suite, nu_tests, target_current, spk_count = opt_setup(specimen_id,
                                                               cellmodel,
                                                               target_num_spikes,provided_model=model,fixed_current=False)
 
 
-# In[ ]:
 
-
-suite.tests[-1].observation
-
-
-# In[ ]:
-
-
-target_current
-spk_count
-
-
-# In[ ]:
 
 
 model.seeded_current = target_current['value']
@@ -183,30 +124,19 @@ cell_evaluator,simple_cell = opt_setup_two(model,cellmodel, suite, nu_tests, tar
 NGEN = 100
 MU = 15
 
-# TODO use pebble instead.
-#builtins.print = print_wrap
-
 mapping_funct = dask_map_function
 final_pop, hall_of_fame, logs, hist = opt_exec(MU,NGEN,mapping_funct,cell_evaluator)
 
 
-# In[ ]:
-
-
-target_current
 opt,target = opt_to_model(hall_of_fame,cell_evaluator,suite, target_current, spk_count)
 
 
 best_ind = hall_of_fame[0]
 fitnesses = cell_evaluator.evaluate_with_lists(best_ind)
-fitnesses;
-
-best_ind
-
 
 
 obnames = [obj.name for obj in cell_evaluator.objectives]
 
 for i,j in zip(fitnesses,obnames):
     print(i,j)
-    #assert i<100
+    assert i<0.07
