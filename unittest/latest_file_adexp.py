@@ -139,4 +139,4 @@ obnames = [obj.name for obj in cell_evaluator.objectives]
 
 for i,j in zip(fitnesses,obnames):
     print(i,j)
-    assert i<0.07
+    assert i<0.1
