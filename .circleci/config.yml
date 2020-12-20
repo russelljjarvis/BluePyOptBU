@@ -31,7 +31,7 @@ jobs:
       - run: conda install numpy;
       - run: conda install numba;
       - run: conda install dask;
-      - run: echo "REDO 6"
+      - run: echo "REDO 7"
       - run: pip install tables
       - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install -e .
