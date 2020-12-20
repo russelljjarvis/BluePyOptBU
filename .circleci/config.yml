@@ -29,7 +29,7 @@ jobs:
       - run: conda install numba;
       - run: conda install dask;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
-      - run: apt-get install -y build-dep python-tables
+      - run: apt-get install -y python-tables
       - run: pip install tables
       - run: apt-get install -y libx11-6 python-dev git build-essential
       - run: apt-get install -y autoconf automake gcc g++ make gfortran
@@ -65,7 +65,7 @@ jobs:
       - run: which pip
       - run: conda install scipy;
       - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
-      - run: apt-get install -y build-dep python-tables 
+      - run: apt-get install -y python-tables
       - run: pip install tables
       - run: pip install git+https://github.com/russelljjarvis/neuronunit
       - run: apt-get update
