@@ -35,7 +35,7 @@ jobs:
       - run: pip install tables
       - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install -e .
-      - run: echo "REDO"
+      - run: echo "REDO 2"
       - run: pip install git+https://github.com/russelljjarvis/neuronunit
       - run: python unittest/latest_file_adexp.py
 
