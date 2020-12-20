@@ -35,23 +35,14 @@ jobs:
       - run: pip install tables
       - run: pip install pip --upgrade; pip install -r requirements.txt;
       - run: pip install -e .
-      - run: pip install -e .
+      - run: pip install git+https://github.com/russelljjarvis/neuronunit
       - run: python unittest/latest_file_adexp.py
-
-
-
-      #- store_artifacts:
-      #    path: $(conda build devtools/conda-recipe --python=3.6 --output)
-      #    destination: build.tar.bz2
-      # Persist the specified paths (workspace/echo-output) into the workspace for use in downstream job.
 
 
   test:
     <<: *defaults
     parallelism: 1
     environment:
-      CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
-      CIRCLE_TEST_REPORTS: /tmp/circleci-test-results
       PYTHONHASHSEED: 0
       OMP_NUM_THREADS: 1
       PYEMMA_NJOBS: 1
