@@ -32,7 +32,7 @@ fsspec>=0.3.3
 efel==3.0.72
 cython
 git+https://github.com/scidash/sciunit@dev
-git+https://github.com/russelljjarvis/neuronunit
+git+https://github.com/russelljjarvis/neuronunit@dev
 
 # numpy
 # asciiplotlib==0.2.3
