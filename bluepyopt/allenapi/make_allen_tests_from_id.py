@@ -1,28 +1,29 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-from neuronunit.optimisation.model_parameters import MODEL_PARAMS
+from neuronunit.optimization.model_parameters import MODEL_PARAMS
 import pickle
 import numpy as np
 from allensdk.core.cell_types_cache import CellTypesCache
 from allensdk.ephys.extract_cell_features import extract_cell_features
 from collections import defaultdict
 from allensdk.core.nwb_data_set import NwbDataSet
-from neuronunit.optimisation.optimization_management import efel_evaluation,rekeyed
+from neuronunit.optimization.optimization_management import efel_evaluation,rekeyed
 import numpy as np
-from neuronunit.make_allen_tests import AllenTest
+from neuronunit.tests.make_allen_tests import AllenTest
 from sciunit import TestSuite
 import matplotlib.pyplot as plt
 from neuronunit.models import StaticModel
 
 from neuronunit.tests.target_spike_current import SpikeCountSearch
-from neuronunit.optimisation.data_transport_container import DataTC
-from neuronunit.optimisation.optimization_management import dtc_to_rheo, rekeyed
+from neuronunit.optimization.data_transport_container import DataTC
+from neuronunit.optimization.optimization_management import dtc_to_rheo, rekeyed
 from neo.core import AnalogSignal
 import quantities as qt
 
 
 
+from elephant.spike_train_generation import threshold_detection
 
 
 def allen_id_to_sweeps(specimen_id):
@@ -201,7 +202,6 @@ def get_model_parts(data_set,sweep_numbers,specimen_id):
     del data_set
     #if 'vmrh' in locals():
     return vm15,vm30,rheobase,currents,vmrh
-from elephant.spike_train_generation import threshold_detection
 
 
 def get_model_parts_sweep_from_spk_cnt(spk_cnt,data_set,sweep_numbers,specimen_id):
@@ -215,9 +215,7 @@ def get_model_parts_sweep_from_spk_cnt(spk_cnt,data_set,sweep_numbers,specimen_i
     #this_cnt_scheme = 0
     for sn in sweep_numbers:
         spike_times = data_set.get_spike_times(sn)
-        print(len(spike_times),spk_cnt)
         if len(spike_times) >= spk_cnt:
-            print('yes hit')
             # stimulus is a numpy array in amps
             sweep_data = data_set.get_sweep(sn)
             stimulus = sweep_data['stimulus']
@@ -264,6 +262,7 @@ def get_model_parts_sweep_from_number(sn,data_set,sweep_numbers,specimen_id):
 
 def make_suite_known_sweep_from_static_models(vm15,stimulus,specimen_id):
     sm = StaticModel(vm = vm15)
+    sm.backend = 'static_model'
     sm.vm15 = vm15
     sm.rheobase = np.max(stimulus)
     sm = efel_evaluation(sm,thirty=False)

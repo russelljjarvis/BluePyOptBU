@@ -44,6 +44,9 @@ bluepyopt.optimisations.DEAPOptimisation = \
 import bluepyopt.evaluators
 import bluepyopt.objectives
 import bluepyopt.parameters  # NOQA
+from bluepyopt.allenapi import make_allen_tests
+from bluepyopt.allenapi import make_allen_tests_from_id
+
 import examples  # NOQA
 #import examples.app.utils  # NOQA
 

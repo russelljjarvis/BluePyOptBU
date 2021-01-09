@@ -77,6 +77,7 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
         self.sim = sim
 
         self.cell_model = cell_model
+        print(self.cell_model,self.cell_model._backend)
         self.param_names = param_names
         # Stimuli used for fitness calculation
         self.fitness_protocols = fitness_protocols
@@ -196,7 +197,7 @@ class CellEvaluator(bpopt.evaluators.Evaluator):
             self.fitness_protocols.values(),
             param_dict)
         return self.fitness_calculator.calculate_scores(responses)
-        
+
     def evaluate_with_lists(self, param_list=None):
         """Run evaluation with lists as input and outputs"""
 

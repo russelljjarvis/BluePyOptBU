@@ -30,7 +30,7 @@ class testOptimizationBackend(unittest.TestCase):
                ]
 
         specimen_id = ids[1]
-        cellmodel = "ADEXP"
+        cellmodel = "IZHI"
 
         if cellmodel == "IZHI":
             model = model_classes.IzhiModel()
@@ -79,8 +79,8 @@ class testOptimizationBackend(unittest.TestCase):
         opt,target = opt_to_model(hall_of_fame,cell_evaluator,suite, target_current, spk_count)
         best_ind = hall_of_fame[0]
         fitnesses = cell_evaluator.evaluate_with_lists(best_ind)
-        assert np.sum(fitnesses)<0.7
-        self.assertGreater(0.7,np.sum(fitnesses))
+        assert np.sum(fitnesses)<5.7
+        self.assertGreater(5.7,np.sum(fitnesses))
 
         #obnames = [obj.name for obj in cell_evaluator.objectives]
 

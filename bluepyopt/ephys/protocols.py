@@ -33,6 +33,8 @@ import copy
 from neo import AnalogSignal
 import quantities as pq
 import neuronunit.capabilities.spike_functions as sf
+from bluepyopt.parameters import Parameter
+
 #from neuronunit.optimisation.optimization_management import inject_model30
 
 class Protocol(object):
@@ -127,7 +129,6 @@ class SequenceProtocol(Protocol):
             content += '%s\n' % str(protocol)
 
         return content
-from bluepyopt.parameters import Parameter
 class SweepProtocol(Protocol):
 
     """Sweep protocol"""
@@ -226,34 +227,32 @@ class SweepProtocol(Protocol):
                     '''
                     # first populate the dtc by frozen default attributes
                     # then update with dynamic gene attributes as appropriate.
-                    attrs = cell_model._backend.default_attrs
-                    attrs.update(copy.copy(param_values))
-                    assert attrs is not None
-                    assert len(param_values)
-                    dtc = cell_model.model_to_dtc(attrs=attrs)
-                    #dtc.attrs = param_values
-                    #print(dtc.attrs,'changing? 2')
+                    #try:
+                    if not hasattr(cell_model,'_backend'):
+                        attrs = {}
+                    else:
+                        attrs = cell_model.default_attrs
+                        attrs.update(copy.copy(param_values))
+                        assert attrs is not None
+                        assert len(param_values)
 
-                    #print(dtc.attrs)
-                    #import pdb
-                    #pdb.set_trace()
+                    #except:
+
+                    #    attrs = cell_model.default_attrs
+                    dtc = cell_model.model_to_dtc(attrs=attrs)
+                    dtc.backend = cell_model.backend
+                    dtc._backend = cell_model._backend
 
                     if hasattr(cell_model,'allen'):
 
 
 
-                        from neuronunit.optimisation.optimization_management import three_step_protocol
+                        from neuronunit.optimization.optimization_management import three_step_protocol
                         if hasattr(cell_model,'seeded_current'):
                             dtc.seeded_current = cell_model.seeded_current
                             dtc.spk_count = cell_model.spk_count
                             dtc = three_step_protocol(dtc,solve_for_current=cell_model.seeded_current)
-                            #print(dtc.rheobase)
-
-                            #vm = cell_model.inject_model()
                             if hasattr(dtc,'everything'):
-                                #print(dtc.everything['Spikecount_1.5x'],'broken?')
-                                #print(dtc.Spikecount_15,'broken no this one is right')
-                                #dtc.everything['Spikecount_1.5x'] = dtc.Spikecount_15
 
                                 responses = {'features':dtc.everything,'name':'rheobase_inj',
                                 'dtc':dtc,'model':cell_model,'params':param_values}
@@ -262,30 +261,17 @@ class SweepProtocol(Protocol):
                                 responses = {'name':'rheobase_inj','model':dtc,'params':param_values}
 
                         else:
-                            #print('also goes here why?')
                             dtc = three_step_protocol(dtc)
 
-                            #vm = cell_model.inject_model()
                             if hasattr(dtc,'everything'):
                                 responses = {'features':dtc.everything,'name':'rheobase_inj',
                                 'dtc':dtc,'model':cell_model,'params':param_values}
                             else:
                                 responses = {'name':'rheobase_inj','model':dtc,'params':param_values}
                     else:
-                        #vm = cell_model.inject_model()
-                        #from neuronunit.capabilities.spike_functions import get_spike_waveforms
-
-                        #real_spike = get_spike_waveforms(vm)
-                        #if real_spike:
                         from neuronunit.optimisation.optimization_management import inject_model30
                         vm30,vm15,_,_,dtc=inject_model30(dtc)
-                        #print(vm15)
                         responses = {'name':'rheobase_inj','response':vm15,'model':dtc,'params':param_values}
-                        #else:
-                        #    print('hit none')
-                        #    responses = {'name':'rheobase_inj',
-                        #    'response':[np.nan],'model':dtc,
-                        #    'rheobase':cell_model.rheobase,'params':param_values}
                     if hasattr(cell_model,'rheobase'):
                         responses['rheobase'] = cell_model.rheobase
 
@@ -371,11 +357,9 @@ class SweepProtocol(Protocol):
 
             if hasattr(cell_model,'backend'):
                 if str(cell_model.backend) not in "ADEXP":
-                    #print('1 backend, parallel slow down circumnavigated',cell_model.backend)
                     responses = self._run_func(cell_model=cell_model,
                         param_values=param_values,
                         sim=sim)
-                    #print(responses)
                     return responses
 
             with pebble.ProcessPool(max_workers=1, max_tasks=1) as pool:
@@ -387,57 +371,22 @@ class SweepProtocol(Protocol):
                 ##
                 # works if inverted try for except etc
                 ##
-                #try:# TimeoutError:
-                #try:
                 try:
                     responses = tasks.result()
                 except:
-                    #print('izh fails here?')
-                    #print('backend',cell_model.backend)
                     responses = self._run_func(cell_model=cell_model,
                         param_values=param_values,
                         sim=sim)
-                #except:
-                '''
-                    print('gets into error but causes hang')
-                    responses = self._run_func(cell_model=cell_model,
-                            param_values=param_values,
-                            sim=sim)
-
-                    responses = {'None':None}
-                except:
-                    #print(param_values)
-
-                    try:
-
-                    except:
-                        print('gets into error but causes hang')
-                        responses = {'None':None}
-
-
-
-                logger.debug('SweepProtocol: task took longer than '
-                                'timeout, will return empty response '
-                                'for this recording')
-
-                '''
         else:
             responses = self._run_func(cell_model=cell_model,
                                        param_values=param_values,
                                        sim=sim)
-        #time = [r.response[0] for r in responses.values() ]
-        #vm = [ r.response[1] for r in responses.values() ]
-
         new_responses = {}
         for k,v in responses.items():
             if hasattr(v,'response'):
                 time = v.response['time'].values#[r.response[0] for r in self.recording.repsonse ]
                 vm = v.response['voltage'].values #[ r.response[1] for r in self.recording.repsonse ]
                 if not hasattr(cell_model,'l5pc'):
-                    #new_responses['neo_'+str(k)] = AnalogSignal(vm,
-                    #                    units=pq.mV,
-                    #                    sampling_period=0.025*pq.ms)
-
                     new_responses['neo_'+str(k)] = AnalogSignal(vm,units=pq.mV,sampling_period=(1/0.01255)*pq.s)
 
 

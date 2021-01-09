@@ -1,37 +1,33 @@
 import pickle
-from bluepyopt.allenapi import make_allen_tests_from_id# import *
+from bluepyopt.allenapi import make_allen_tests_from_id
 
 from bluepyopt.allenapi.make_allen_tests_from_id import *
-from neuronunit.optimisation.optimization_management import dtc_to_rheo
-from neuronunit.optimisation.optimization_management import inject_model30,check_bin_vm30,check_bin_vm15
+from neuronunit.optimization.optimization_management import dtc_to_rheo
+from neuronunit.optimization.optimization_management import inject_model30,check_bin_vm30,check_bin_vm15
 
-
-import efel
 import pandas as pd
 import seaborn as sns
-list(efel.getFeatureNames());
-from utils import dask_map_function
+from bluepyopt.allenapi.utils import dask_map_function
 
 import bluepyopt as bpop
 import bluepyopt.ephys as ephys
 import pickle
-from sciunit.scores import ZScore, RatioScore
+from sciunit.scores import RelativeDifferenceScore
 from sciunit import TestSuite
 from sciunit.scores.collections import ScoreArray
-import sciunit
-import numpy as np
-from neuronunit.optimisation.optimization_management import dtc_to_rheo, switch_logic,active_values
+#import numpy as np
+from neuronunit.optimization.optimization_management import dtc_to_rheo, switch_logic,active_values
 from neuronunit.tests.base import AMPL, DELAY, DURATION
 
 import quantities as pq
 PASSIVE_DURATION = 500.0*pq.ms
 PASSIVE_DELAY = 200.0*pq.ms
 import matplotlib.pyplot as plt
-from bluepyopt.ephys.models import ReducedCellModel
+
 import numpy
-from neuronunit.optimisation.optimization_management import test_all_objective_test
-from neuronunit.optimisation.optimization_management import check_binary_match, three_step_protocol,inject_and_plot_passive_model
-from neuronunit.optimisation.model_parameters import MODEL_PARAMS, BPO_PARAMS
+from neuronunit.optimization.optimization_management import test_all_objective_test
+from neuronunit.optimization.optimization_management import check_binary_match, three_step_protocol,inject_and_plot_passive_model
+from neuronunit.optimization.model_parameters import MODEL_PARAMS, BPO_PARAMS
 import copy
 
 import numpy as np
@@ -41,7 +37,6 @@ from sciunit.scores import ZScore
 from collections.abc import Iterable
 
 from bluepyopt.parameters import Parameter
-from utils import dask_map_function
 
 
 #tests = pickle.load(open('allen_NU_tests.p','rb'))
@@ -96,6 +91,8 @@ def opt_setup(specimen_id,cellmodel,target_num,provided_model = None,cache=None,
     #    model = dtc.dtc_to_model()
 
     if provided_model is None:
+        print('depricated in favor of jithub model')
+        assert 1==2
         provided_model = ephys.models.ReducedCellModel(
                 name='simple_cell',
                 params=BPO_PARAMS[cellmodel],backend=cellmodel)
@@ -130,11 +127,10 @@ class NUFeatureAllenMultiSpike(object):
     def __init__(self,test,model,cnt,target,spike_obs,print_stuff=False):
         self.test = test
         self.model = model
-        #self.check_list = check_list
         self.spike_obs = spike_obs
         self.cnt = cnt
         self.target = target
-        self.print_stuff = print_stuff
+        #self.print_stuff = print_stuff
     def calculate_score(self,responses):
 
         if not 'features' in responses.keys():# or not 'model' in responses.keys():
@@ -145,7 +141,7 @@ class NUFeatureAllenMultiSpike(object):
 
         if features is None:
             return 1000.0
-        self.test.score_type = ZScore
+        self.test.score_type = RelativeDifferenceScore
         feature_name = self.test.name
         if feature_name not in features.keys():
             return 1000.0
@@ -154,7 +150,7 @@ class NUFeatureAllenMultiSpike(object):
             return 1000.0
         if type(features[self.test.name]) is type(Iterable):
             features[self.test.name] = np.mean(features[self.test.name])
-        self.test.observation['std'] = np.abs(np.mean(self.test.observation['mean']))
+
         self.test.observation['mean'] = np.mean(self.test.observation['mean'])
         self.test.set_prediction(np.mean(features[self.test.name]))
 
@@ -171,7 +167,12 @@ class NUFeatureAllenMultiSpike(object):
             # Ratio score breaks this for unknown reasons.
             ###
             self.test.score_type = ZScore
+            prediction = {'value':np.mean(features[self.test.name])}
+            score_gene2 = self.test.judge(self.model,prediction=prediction)
             score_gene = self.test.feature_judge()
+            #print(score_gene.raw,score_gene2.raw)
+            #assert score_gene2.raw == score_gene.raw
+            #score_gene = self.test.feature_judge()
             #print(score_gene)
             if score_gene is not None:
                 if score_gene.raw is not None:
@@ -182,14 +183,14 @@ class NUFeatureAllenMultiSpike(object):
 
             else:
                 delta = None
-                    #if delta==np.inf or np.isnan(delta):
-                    #    if score_gene.raw is not None:
-                    #        delta =  np.abs(float(score_gene.raw))
             if delta is None:
+                print('this occurs often')
                 delta = np.abs(features[self.test.name]-np.mean(self.test.observation['mean']))
 
 
             if np.nan==delta or delta==np.inf:
+                print('this occurs often')
+
                 delta = np.abs(features[self.test.name]-np.mean(self.test.observation['mean']))
             if np.nan==delta or delta==np.inf:
                 delta = 1000.0
@@ -227,6 +228,9 @@ def opt_setup_two(model, cellmodel, suite, nu_tests, target_current, spk_count,p
     #    lop[k] = p
 
     if provided_model is None:
+        print('depriciated')
+        assert 1==2
+
         simple_cell = ephys.models.ReducedCellModel(
                 name='simple_cell',
                 params=BPO_PARAMS[cellmodel],backend=cellmodel)
@@ -315,10 +319,7 @@ def opt_to_model(hall_of_fame,cell_evaluator2,suite, target_current, spk_count):
     opt.attrs = {str(k):float(v) for k,v in cell_evaluator2.param_dict(best_ind).items()}
     model._backend.attrs = opt.attrs
     target = copy.copy(opt)
-    #target.vm30 = suite.traces['vm30']
     target.vm15 = suite.traces['vm15']
-    #opt.allen = None
-    #opt.allen = True
     opt.seeded_current = target_current['value']
     opt.spk_count = spk_count
 

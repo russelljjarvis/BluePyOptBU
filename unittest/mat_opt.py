@@ -30,7 +30,7 @@ class testOptimizationBackend(unittest.TestCase):
                ]
 
         specimen_id = ids[1]
-        cellmodel = "ADEXP"
+        cellmodel = "MAT"
 
         if cellmodel == "IZHI":
             model = model_classes.IzhiModel()

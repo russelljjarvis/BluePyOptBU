@@ -37,7 +37,7 @@ from deap.tools import cxSimulatedBinary
 from deap import tools, gp
 import random
 import streamlit as st
-
+import copy
 logger = logging.getLogger('__main__')
 DASK = False
 import dask
@@ -77,9 +77,22 @@ def _update_history_and_hof(halloffame, history, population):
     history.update(population)
 
 
-def _record_stats(stats, logbook, gen, population, invalid_count):
-    '''Update the statistics with the new population'''
+def _record_stats(stats, logbook, gen, population, invalid_count,cleanse_sins=True):
+    '''Update the statistics with the new population
+    if cleanse_sins:
+        pop2 = copy.copy(population)
+        for i,p in enumerate(pop2):
+            remove = False
+            for f in p.fitness.values:
+                if f==1000:
+                    remove = True
+            if remove:
+                del pop2[i]
+        record = stats.compile(pop2) if stats is not None else {}
+    else:
+    '''
     record = stats.compile(population) if stats is not None else {}
+
     logbook.record(gen=gen, nevals=invalid_count, **record)
 
 
@@ -217,7 +230,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
         # TODO this first loop should be not be repeated !
         invalid_count = _evaluate_invalid_fitness(toolbox, population)
         _update_history_and_hof(halloffame, history, population)
-        best_vs_gen.append(halloffame[0])
+        #best_vs_gen.append(halloffame[0])
         _record_stats(stats, logbook, start_gen, population, invalid_count)
         logger.info(logbook.stream)
         #print(logbook.stream)

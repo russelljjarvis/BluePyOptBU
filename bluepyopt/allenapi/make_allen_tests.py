@@ -2,8 +2,8 @@ from neuronunit.tests.base import VmTest
 import pickle
 import numpy as np
 from allensdk.core.cell_types_cache import CellTypesCache
-from neuronunit.optimisation.data_transport_container import DataTC
-from neuronunit.optimisation.optimization_management import allen_wave_predictions, three_step_protocol
+from neuronunit.optimization.data_transport_container import DataTC
+from neuronunit.optimization.optimization_management import allen_wave_predictions, three_step_protocol
 from sciunit.scores import ZScore
 class AllenTest(VmTest):
     def __init__(self,
@@ -17,10 +17,10 @@ class AllenTest(VmTest):
         #self.set_observation(observation)
 
         self.prediction = prediction
-        
+
         #print(self._observation)
     #required_capabilities = (scap.Runnable, ncap.ProducesMembranePotential,)
-    
+
     # units = pass #
     # ephysprop_name = ''
     aliases = ''
@@ -50,7 +50,7 @@ class AllenTest(VmTest):
         #ephys1.update()
         #if not len(self.prediction.keys()):
 
-    
+
 
     def compute_params(self):
         self.params['t_max'] = (self.params['delay'] +
