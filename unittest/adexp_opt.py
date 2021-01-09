@@ -29,7 +29,7 @@ class testOptimizationBackend(unittest.TestCase):
                ]
 
     def test_opt_1(self):
-        specimen_id = self.ids[3]
+        specimen_id = self.ids[1]
         cellmodel = "ADEXP"
 
         if cellmodel == "IZHI":
