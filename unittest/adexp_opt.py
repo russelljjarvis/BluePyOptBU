@@ -16,7 +16,7 @@ from jithub.models import model_classes
 import matplotlib.pyplot as plt
 import quantities as qt
 
-class testOptimizationBackend(unittest.TestCase):
+class testOptimization(unittest.TestCase):
     def setUp(self):
         self = self
         self.ids = [ 324257146,
@@ -39,20 +39,6 @@ class testOptimizationBackend(unittest.TestCase):
         if cellmodel == "ADEXP":
             model = model_classes.ADEXPModel()
 
-        specific_filter_list = ['ISI_log_slope_1.5x',
-                                'mean_frequency_1.5x',
-                                'adaptation_index2_1.5x',
-                                'first_isi_1.5x',
-                                'ISI_CV_1.5x',
-                                'median_isi_1.5x',
-                                'Spikecount_1.5x',
-                                'all_ISI_values',
-                                'ISI_values',
-                                'time_to_first_spike',
-                                'time_to_last_spike',
-                                'time_to_second_spike',
-                                'spike_times']
-        simple_yes_list = specific_filter_list
         target_num_spikes = 8
         dtc = DataTC()
         dtc.backend = cellmodel
@@ -60,8 +46,8 @@ class testOptimizationBackend(unittest.TestCase):
         dtc.attrs = model.attrs
         dtc.params = {k:np.mean(v) for k,v in MODEL_PARAMS[cellmodel].items()}
         dtc = dtc_to_rheo(dtc)
-        self.assertNotEqual(None,dtc.rheobase)
-        self.assertNotEqual(None,dtc.rheobase['value'])
+        self.assertIsNotNone(dtc.rheobase)
+        #self.assertNotEqual(None,dtc.rheobase['value'])
 
         vm,plt,dtc = inject_and_plot_model(dtc,plotly=False)
         fixed_current = 122 *qt.pA
