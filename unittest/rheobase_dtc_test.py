@@ -19,17 +19,8 @@ import quantities as qt
 class testOptimization(unittest.TestCase):
     def setUp(self):
         self = self
-        self.ids = [ 324257146,
-                325479788,
-                476053392,
-                623893177,
-                623960880,
-                482493761,
-                471819401
-               ]
 
     def test_opt_1(self):
-        specimen_id = self.ids[1]
         cellmodel = "ADEXP"
 
         if cellmodel == "IZHI":
@@ -39,7 +30,6 @@ class testOptimization(unittest.TestCase):
         if cellmodel == "ADEXP":
             model = model_classes.ADEXPModel()
 
-        target_num_spikes = 8
         dtc = DataTC()
         dtc.backend = cellmodel
         dtc._backend = model._backend
@@ -50,6 +40,9 @@ class testOptimization(unittest.TestCase):
         assert dtc.rheobase is not None
         self.assertIsNotNone(dtc.rheobase)
         vm,plt,dtc = inject_and_plot_model(dtc,plotly=False)
+        self.assertIsNotNone(vm)
         model = dtc.dtc_to_model()
+        self.assertIsNotNone(model)
+
 if __name__ == '__main__':
     unittest.main()
