@@ -3,7 +3,7 @@ import unittest
 # coding: utf-8
 import matplotlib
 matplotlib.use('Agg')
-from bluepyopt.allenapi.allen_data_driven import opt_setup, opt_setup_two, opt_exec, opt_to_model
+from neuronunit.allenapi.allen_data_driven import opt_setup, opt_setup_two, opt_exec, opt_to_model
 from neuronunit.optimization.optimization_management import check_bin_vm15
 from neuronunit.optimization.model_parameters import MODEL_PARAMS, BPO_PARAMS, to_bpo_param
 from neuronunit.optimization.optimization_management import dtc_to_rheo,inject_and_plot_model
@@ -45,10 +45,10 @@ class testOptimization(unittest.TestCase):
         dtc._backend = model._backend
         dtc.attrs = model.attrs
         dtc.params = {k:np.mean(v) for k,v in MODEL_PARAMS[cellmodel].items()}
+        #def test_rheobase(self,dtc):
         dtc = dtc_to_rheo(dtc)
+        assert dtc.rheobase is not None
         self.assertIsNotNone(dtc.rheobase)
-        #self.assertNotEqual(None,dtc.rheobase['value'])
-
         vm,plt,dtc = inject_and_plot_model(dtc,plotly=False)
         fixed_current = 122 *qt.pA
         model, suite, nu_tests, target_current, spk_count = opt_setup(specimen_id,

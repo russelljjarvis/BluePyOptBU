@@ -46,12 +46,10 @@ class testOptimization(unittest.TestCase):
         dtc.attrs = model.attrs
         dtc.params = {k:np.mean(v) for k,v in MODEL_PARAMS[cellmodel].items()}
         other_params = BPO_PARAMS[cellmodel]
-        def test_rheobase(self,dtc):
-            dtc = dtc_to_rheo(dtc)
-            assert dtc.rheobase is not None
-            self.assertIsNotNone(dtc.rheobase)
-            vm,plt,dtc = inject_and_plot_model(dtc,plotly=False)
-        self.test_rheobase(dtc)
+        dtc = dtc_to_rheo(dtc)
+        assert dtc.rheobase is not None
+        self.assertIsNotNone(dtc.rheobase)
+        vm,plt,dtc = inject_and_plot_model(dtc,plotly=False)
         model = dtc.dtc_to_model()
 if __name__ == '__main__':
     unittest.main()
