@@ -19,8 +19,7 @@ import quantities as qt
 class testOptimizationBackend(unittest.TestCase):
     def setUp(self):
         self = self
-    def test_opt(self):
-        ids = [ 324257146,
+        self.ids = [ 324257146,
                 325479788,
                 476053392,
                 623893177,
@@ -29,7 +28,8 @@ class testOptimizationBackend(unittest.TestCase):
                 471819401
                ]
 
-        specimen_id = ids[1]
+    def test_opt_1(self):
+        specimen_id = self.ids[3]
         cellmodel = "ADEXP"
 
         if cellmodel == "IZHI":
