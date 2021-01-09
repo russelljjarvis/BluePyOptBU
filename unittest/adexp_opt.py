@@ -104,3 +104,5 @@ class testOptimizationBackend(unittest.TestCase):
         plt.plot(target.vm15.times,target.vm15)
         target.vm15 = suite.traces['vm15']
         check_bin_vm15(target,opt)
+if __name__ == '__main__':
+    unittest.main()
