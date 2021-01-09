@@ -33,15 +33,15 @@ jobs:
       - run: conda install dask;
       - run: pip install tables
       - run: pip install pip --upgrade; pip install -r requirements.txt;
+      - run: pip install -e .
       - run: git clone -b neuronunit https://github.com/russelljjarvis/jit_hub.git
       - run: cd jit_hub; pip install -e .; cd ..;
-      - run: pip install -e .
-      - run: echo "redo"
       - run: pip install git+https://github.com/russelljjarvis/neuronunit@optimization
       - run: pip install cython
       - run: pip install asciiplotlib;
-      - run: python -u unittest unittest/latest_file_adexp.py
-      - run: python -u unittest unittest/izhi_opt.py
+      - run: cd unittest;
+      - run: python -u unittest latest_file_adexp.py
+      - run: python -u unittest izhi_opt.py
       - run: coverage run -m latest_file_adexp.py
       - run: coverage report
 
