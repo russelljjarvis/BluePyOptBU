@@ -41,7 +41,7 @@ jobs:
       - run: pip install asciiplotlib;
       - run: pip install streamlit;
       - run: pip install seaborn;
-      - run: pip install allensdk
+      - run: pip install --upgrade --force-reinstall allensdk==0.16.3
       - run: cd unittest; python adexp_opt.py
       - run: cd unittest; python izhi_opt.py
       - run: cd unittest; coverage run adexp_opt.py
