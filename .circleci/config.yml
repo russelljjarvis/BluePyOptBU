@@ -40,9 +40,9 @@ jobs:
       - run: pip install cython
       - run: pip install asciiplotlib;
       - run: cd unittest;
-      - run: python -u unittest adexp_opt.py
-      - run: python -u unittest izhi_opt.py
-      - run: coverage run -m latest_file_adexp.py
+      - run: python -m unittest adexp_opt.py
+      - run: python -m unittest izhi_opt.py
+      - run: coverage run -m adexp_opt.py
       - run: coverage report
 
 
