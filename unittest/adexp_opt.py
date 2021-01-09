@@ -60,11 +60,17 @@ class testOptimizationBackend(unittest.TestCase):
         dtc.attrs = model.attrs
         dtc.params = {k:np.mean(v) for k,v in MODEL_PARAMS[cellmodel].items()}
         dtc = dtc_to_rheo(dtc)
+        self.assertNotEqual(None,dtc.rheobase)
+        self.assertNotEqual(None,dtc.rheobase['value'])
+
         vm,plt,dtc = inject_and_plot_model(dtc,plotly=False)
         fixed_current = 122 *qt.pA
         model, suite, nu_tests, target_current, spk_count = opt_setup(specimen_id,
                                                                       cellmodel,
-                                                                      target_num_spikes,provided_model=model,fixed_current=False)
+                                                                      target_num_spikes,
+                                                                      provided_model=model,
+                                                                      fixed_current=False,
+                                                                      cached=True)
         model = dtc.dtc_to_model()
         model.seeded_current = target_current['value']
         model.allen = True

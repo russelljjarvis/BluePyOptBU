@@ -15,8 +15,6 @@ import pickle
 from sciunit.scores import RelativeDifferenceScore
 from sciunit import TestSuite
 from sciunit.scores.collections import ScoreArray
-#import numpy as np
-from neuronunit.optimization.optimization_management import dtc_to_rheo, switch_logic,active_values
 from neuronunit.tests.base import AMPL, DELAY, DURATION
 
 import quantities as pq
@@ -37,27 +35,6 @@ from sciunit.scores import ZScore
 from collections.abc import Iterable
 
 from bluepyopt.parameters import Parameter
-
-
-#tests = pickle.load(open('allen_NU_tests.p','rb'))
-#names = [t.name for t in tests[3].tests ]
-#names;
-
-
-simple_yes_list = ['spike_times'
-    'all_ISI_values',
-    'ISI_log_slope','mean_frequency',
-    'adaptation_index2',
-    'first_isi','ISI_CV','median_isi','AHP_depth_abs',
-    'sag_ratio2','ohmic_input_resistance',
-    'sag_ratio2','peak_voltage','voltage_base','Spikecount',
-    'ohmic_input_resistance_vb_ssse',
-    'all_ISI_values',
-    'ISI_values',
-    'time_to_first_spike',
-    'time_to_last_spike',
-    'time_to_second_spike',
-    'trace_check']
 
 def opt_setup(specimen_id,cellmodel,target_num,provided_model = None,cache=None,fixed_current=False):
     if cache is not None:

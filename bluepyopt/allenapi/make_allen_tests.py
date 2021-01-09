@@ -4,7 +4,7 @@ import numpy as np
 from allensdk.core.cell_types_cache import CellTypesCache
 from neuronunit.optimization.data_transport_container import DataTC
 from neuronunit.optimization.optimization_management import allen_wave_predictions, three_step_protocol
-from sciunit.scores import ZScore
+from sciunit.scores import RelativeDifferenceScore
 class AllenTest(VmTest):
     def __init__(self,
                  observation={'mean': None, 'std': None},
@@ -12,7 +12,7 @@ class AllenTest(VmTest):
                  prediction={'mean': None, 'std': None}):
         super(AllenTest, self).__init__(observation, name)
         self.name = name
-        self.score_type = ZScore
+        self.score_type = RelativeDifferenceScore
         self.observation = observation
         #self.set_observation(observation)
 
@@ -34,18 +34,16 @@ class AllenTest(VmTest):
             dtc = three_step_protocol(dtc)
             dtc,ephys0 = allen_wave_predictions(dtc,thirty=True)
             dtc,ephys1 = allen_wave_predictions(dtc,thirty=False)
-            import pdb
-            pdb.set_trace()
             if self.name in ephys0.keys():
                 feature = ephys0[self.name]
                 self.prediction = {}
-                self.prediction['mean'] = feature
-                self.prediction['std'] = feature
+                self.prediction['value'] = feature
+                #self.prediction['std'] = feature
             if self.name in ephys1.keys():
                 feature = ephys1[self.name]
                 self.prediction = {}
-                self.prediction['mean'] = feature
-                self.prediction['std'] = feature
+                self.prediction['value'] = feature
+                #self.prediction['std'] = feature
             return self.prediction
         #ephys1.update()
         #if not len(self.prediction.keys()):
