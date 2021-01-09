@@ -39,14 +39,13 @@ jobs:
       - run: pip install git+https://github.com/russelljjarvis/neuronunit@optimization
       - run: pip install cython
       - run: pip install asciiplotlib;
-      - run: cd unittest;
-      - run: pwd
+      - run: cd unittest; pwd
       - run: ls *.py
       - run: ls *
-      - run: python adexp_opt.py
-      - run: python izhi_opt.py
-      - run: coverage run adexp_opt.py
-      - run: coverage report
+      - run: cd unittest; python adexp_opt.py
+      - run: cd unittest; python izhi_opt.py
+      - run: cd unittest; coverage run adexp_opt.py
+      - run: cd unittest; coverage report
 
 
   test:
