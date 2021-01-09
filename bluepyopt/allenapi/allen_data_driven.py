@@ -36,8 +36,8 @@ from collections.abc import Iterable
 
 from bluepyopt.parameters import Parameter
 
-def opt_setup(specimen_id,cellmodel,target_num,provided_model = None,cache=None,fixed_current=False):
-    if cache is not None:
+def opt_setup(specimen_id,cellmodel,target_num,provided_model = None,cached=None,fixed_current=False):
+    if cached is not None:
         with open(str(specimen_id)+'later_allen_NU_tests.p','rb') as f:
             suite = pickle.load(f)
 
