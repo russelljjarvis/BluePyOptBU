@@ -50,6 +50,8 @@ jobs:
       #- run: conda install -c conda-forge pytables
 
       - run: pip install allensdk==0.16.3
+      - run: pip install ipfx
+
       - run: cd unittest; python rheobase_dtc_test.py
       #- run: pip install --upgrade --force-reinstall allensdk==0.16.3
       - run: cd unittest; python adexp_opt.py
