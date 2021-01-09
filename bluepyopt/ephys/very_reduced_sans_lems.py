@@ -8,7 +8,7 @@ from sciunit.models.runnable import RunnableModel
 import numpy as np
 from neo.core import AnalogSignal
 import quantities as pq
-from neuronunit.optimisation.data_transport_container import DataTC
+from neuronunit.optimization.data_transport_container import DataTC
 
 import neuronunit.capabilities.spike_functions as sf
 class VeryReducedModel(RunnableModel,
