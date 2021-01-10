@@ -54,35 +54,3 @@ jobs:
       #- run: cd unittest; python izhi_opt.py
       #- run: cd unittest; coverage run adexp_opt.py
       #- run: cd unittest; coverage report
-
-
-  test:
-    <<: *defaults
-    parallelism: 1
-    environment:
-      PYTHONHASHSEED: 0
-      OMP_NUM_THREADS: 1
-      PYEMMA_NJOBS: 1
-
-    steps:
-      - checkout
-      - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
-      - run: conda config --add channels conda-forge
-      - run: conda config --set always_yes true
-      - run: conda config --set quiet true
-      - run: apt-get install -y cpp gcc
-      - run: apt-get install -y python-tables
-      - run: apt-get install -y libx11-6 python-dev git build-essential
-      - run: apt-get install -y autoconf automake gcc g++ make gfortran
-      - run: conda install conda-build
-      - run: conda install scipy;
-      - run: pip install tables
-      - run: pip install git+https://github.com/russelljjarvis/neuronunit@optimization
-      - run: pip install git+https://github.com/russelljjarvis/jit_hub.git@neuronunit
-      - run: apt-get update
-      - run: pip install pip --upgrade; pip install -r requirements.txt;
-      - run: pip install -e .
-      - run: python unittest/latest_file_adexp.py
-      - run: pip install coverage
-      - run: coverage run unittest/latest_file_adexp.py
-      - run: coverage report
