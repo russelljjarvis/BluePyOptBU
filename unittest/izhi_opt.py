@@ -3,12 +3,19 @@ import unittest
 # coding: utf-8
 import matplotlib
 matplotlib.use('Agg')
-from neuronunit.allenapi.allen_data_driven import opt_setup, opt_setup_two, opt_exec, opt_to_model
+try:
+    from neuronunit.allenapi.allen_data_driven import opt_setup, opt_setup_two, opt_exec, opt_to_model
+    from neuronunit.allenapi.allen_data_driven import opt_to_model
+    from neuronunit.allenapi.utils import dask_map_function
+
+except:
+    from bluepyopt.allenapi.allen_data_driven import opt_setup, opt_setup_two, opt_exec, opt_to_model
+    from bluepyopt.allenapi.allen_data_driven import opt_to_model
+    from bluepyopt.allenapi.utils import dask_map_function
+
 from neuronunit.optimization.optimization_management import check_bin_vm15
 from neuronunit.optimization.model_parameters import MODEL_PARAMS, BPO_PARAMS, to_bpo_param
 from neuronunit.optimization.optimization_management import dtc_to_rheo,inject_and_plot_model
-from bluepyopt.allenapi.allen_data_driven import opt_to_model
-from bluepyopt.allenapi.utils import dask_map_function
 import numpy as np
 from neuronunit.optimization.data_transport_container import DataTC
 import efel
@@ -16,11 +23,10 @@ from jithub.models import model_classes
 import matplotlib.pyplot as plt
 import quantities as qt
 
-class testOptimizationBackend(unittest.TestCase):
+class testOptimization(unittest.TestCase):
     def setUp(self):
         self = self
-    def test_opt(self):
-        ids = [ 324257146,
+        self.ids = [ 324257146,
                 325479788,
                 476053392,
                 623893177,
@@ -29,7 +35,8 @@ class testOptimizationBackend(unittest.TestCase):
                 471819401
                ]
 
-        specimen_id = ids[1]
+    def test_opt_1(self):
+        specimen_id = self.ids[1]
         cellmodel = "IZHI"
 
         if cellmodel == "IZHI":
@@ -39,32 +46,25 @@ class testOptimizationBackend(unittest.TestCase):
         if cellmodel == "ADEXP":
             model = model_classes.ADEXPModel()
 
-        specific_filter_list = ['ISI_log_slope_1.5x',
-                                'mean_frequency_1.5x',
-                                'adaptation_index2_1.5x',
-                                'first_isi_1.5x',
-                                'ISI_CV_1.5x',
-                                'median_isi_1.5x',
-                                'Spikecount_1.5x',
-                                'all_ISI_values',
-                                'ISI_values',
-                                'time_to_first_spike',
-                                'time_to_last_spike',
-                                'time_to_second_spike',
-                                'spike_times']
-        simple_yes_list = specific_filter_list
+
         target_num_spikes = 8
         dtc = DataTC()
         dtc.backend = cellmodel
         dtc._backend = model._backend
         dtc.attrs = model.attrs
         dtc.params = {k:np.mean(v) for k,v in MODEL_PARAMS[cellmodel].items()}
+
         dtc = dtc_to_rheo(dtc)
+        assert dtc.rheobase is not None
+        self.assertIsNotNone(dtc.rheobase)
         vm,plt,dtc = inject_and_plot_model(dtc,plotly=False)
         fixed_current = 122 *qt.pA
         model, suite, nu_tests, target_current, spk_count = opt_setup(specimen_id,
                                                                       cellmodel,
-                                                                      target_num_spikes,provided_model=model,fixed_current=False)
+                                                                      target_num_spikes,
+                                                                      provided_model=model,
+                                                                      fixed_current=False,
+                                                                      cached=True)
         model = dtc.dtc_to_model()
         model.seeded_current = target_current['value']
         model.allen = True
@@ -104,6 +104,5 @@ class testOptimizationBackend(unittest.TestCase):
         plt.plot(target.vm15.times,target.vm15)
         target.vm15 = suite.traces['vm15']
         check_bin_vm15(target,opt)
-
 if __name__ == '__main__':
     unittest.main()
