@@ -5,7 +5,6 @@ mock==3.0.5
 tqdm==4.48.2
 neo==0.5.2
 plotly==4.5.2
-allensdk==0.16.3
 simplejson==3.17.0
 future==0.17.1
 streamlit
@@ -22,18 +21,12 @@ frozendict==1.2
 neo==0.5.2
 numba
 tqdm==4.48.2
-maps==5.1.1
 allensdk==0.16.3
 natsort==7.0.1
 nbformat==4.4.0
 quantities==0.12.4
 dask[bag]
 fsspec>=0.3.3
-efel==3.0.72
+git+https://github.com/russelljjarvis/eFEL
 cython
-git+https://github.com/scidash/sciunit@dev
-
-# numpy
-# asciiplotlib==0.2.3
-# pyNeuroML==0.3.15
-# scipy==1.3.1
+git+https://github.com/russelljjarvis/sciunit@dev
