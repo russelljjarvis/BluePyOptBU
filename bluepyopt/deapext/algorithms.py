@@ -41,6 +41,9 @@ import copy
 logger = logging.getLogger('__main__')
 DASK = False
 import dask
+
+import numpy as np
+import streamlit as st
 def _evaluate_invalid_fitness(toolbox, population):
     '''Evaluate the individuals with an invalid fitness
 
@@ -48,21 +51,9 @@ def _evaluate_invalid_fitness(toolbox, population):
     '''
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
     eval_ = toolbox.evaluate
-    #lazy = dask.delayed((eval_)(ind) for ind in invalid_ind)
-    #try:
-    #    fitnesses = list(dask.compute(lazy))
-    #except:
     fitnesses = toolbox.map(eval_, invalid_ind)
-    #if hasattr(fitnesses,'result'):
-    #    for ind, fit in zip(invalid_ind, list(fitnesses.result())):
-    #        ind.fitness.values = fit
-
-    #else:
     for ind, fit in zip(invalid_ind, fitnesses):
         ind.fitness.values = fit
-        #print(fit,'fitnesses odd?')
-    #print('fitnesses odd?',[fit for fit in fitnesses])
-
     return len(invalid_ind)
 
 
@@ -78,7 +69,7 @@ def _update_history_and_hof(halloffame, history, population):
 
 
 def _record_stats(stats, logbook, gen, population, invalid_count,cleanse_sins=True):
-    '''Update the statistics with the new population
+    '''Update the statistics with the new population'''
     if cleanse_sins:
         pop2 = copy.copy(population)
         for i,p in enumerate(pop2):
@@ -90,8 +81,7 @@ def _record_stats(stats, logbook, gen, population, invalid_count,cleanse_sins=Tr
                 del pop2[i]
         record = stats.compile(pop2) if stats is not None else {}
     else:
-    '''
-    record = stats.compile(population) if stats is not None else {}
+        record = stats.compile(population) if stats is not None else {}
 
     logbook.record(gen=gen, nevals=invalid_count, **record)
 
@@ -174,8 +164,6 @@ def _check_stopping_criteria(criteria, params):
     else:
         return False
 
-import numpy as np
-import streamlit as st
 def eaAlphaMuPlusLambdaCheckpoint(
         population,
         toolbox,
@@ -230,10 +218,8 @@ def eaAlphaMuPlusLambdaCheckpoint(
         # TODO this first loop should be not be repeated !
         invalid_count = _evaluate_invalid_fitness(toolbox, population)
         _update_history_and_hof(halloffame, history, population)
-        #best_vs_gen.append(halloffame[0])
         _record_stats(stats, logbook, start_gen, population, invalid_count)
         logger.info(logbook.stream)
-        #print(logbook.stream)
 
 
     stopping_criteria = [MaxNGen(ngen)]
@@ -244,9 +230,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
     pbar = tqdm(total=ngen)
     while not(_check_stopping_criteria(stopping_criteria, stopping_params)):
-        #print(parents,'parents')
-        offspring = _get_offspring(parents, toolbox, cxpb, mutpb, mu)#, wild=False)
-
+        offspring = _get_offspring(parents, toolbox, cxpb, mutpb, int(mu))
         population = parents + offspring
         population.append(halloffame[0])
         flo = np.sum(halloffame[0].fitness.values)
@@ -255,14 +239,12 @@ def eaAlphaMuPlusLambdaCheckpoint(
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
 
         _update_history_and_hof(halloffame, history, population)
-        #best_vs_gen.append(halloffame[0])
         _record_stats(stats, logbook, gen, population, invalid_count)
 
         ##
         # Throw away unfit genes
         ##
-        parents = toolbox.select(population, int(mu/4))
-        #parents.append(halloffame[0])
+        parents = toolbox.select(population, int(mu/5))
         logger.info(logbook.stream)
 
         if(cp_filename and cp_frequency and
