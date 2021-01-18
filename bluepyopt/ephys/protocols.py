@@ -167,42 +167,19 @@ class SweepProtocol(Protocol):
 
     def _run_func(self, cell_model, param_values, sim=None):
         """Run protocols"""
+        from neuronunit.optimization.optimization_management import three_step_protocol
+        #from neuronunit.optimization.optimization_management import inject_model30
+
 
         try:
-
-            ##
-            # this new block could be a failure cause
-            ##
-            #try:
             cell_model.freeze(param_values)
             cell_model.instantiate(sim=sim)
-            '''
-            fix parameters in l5pc model
-            #except:
-                #import pdb
-                #pdb.set_trace()
-
-                replace = {}
-                #cell_model.attrs = {}
-                for k,v in param_values.items():
-                    #cell_model.attrs[k] =
-                    replace[k] = Parameter(k,value=param_values[k])
-                param_values = replace
-                cell_model.params = replace
-                #import pdb
-                #pdb.set_trace()
-                cell_model.freeze(param_values)
-                for k,v in cell_model.params.items():
-                    cell_model.params[k] = float(v)
-
-                #print('passed')
-
-                #pass
-            '''
             try:
                 self.instantiate(sim=sim, icell=cell_model.icell)
             except:
                 pass
+
+
             try:
                 ##
                 # The defualt NEURON SIM RUN
@@ -213,18 +190,6 @@ class SweepProtocol(Protocol):
 
 
                 else:
-                    '''
-                    if False:
-                        # Faster way to achieve same thing
-                        if cell_model.tests is not None:
-                            dtc = cell_model.model_to_dtc()
-                            scores = dtc.self_evaluate()
-                            responses = {'name':'rheobase_inj',
-                                        'model':cell_model.model_to_dtc(),
-                                        'rheobase':cell_model.rheobase,
-                                        'params':param_values,
-                                        'scores':scores}
-                    '''
                     # first populate the dtc by frozen default attributes
                     # then update with dynamic gene attributes as appropriate.
                     #try:
@@ -236,9 +201,6 @@ class SweepProtocol(Protocol):
                         assert attrs is not None
                         assert len(param_values)
 
-                    #except:
-
-                    #    attrs = cell_model.default_attrs
                     dtc = cell_model.model_to_dtc(attrs=attrs)
                     dtc.backend = cell_model.backend
                     dtc._backend = cell_model._backend
@@ -247,14 +209,14 @@ class SweepProtocol(Protocol):
 
 
 
-                        from neuronunit.optimization.optimization_management import three_step_protocol
+
                         if hasattr(cell_model,'seeded_current'):
                             dtc.seeded_current = cell_model.seeded_current
                             dtc.spk_count = cell_model.spk_count
                             dtc = three_step_protocol(dtc,solve_for_current=cell_model.seeded_current)
                             if hasattr(dtc,'everything'):
 
-                                responses = {'features':dtc.everything,'name':'rheobase_inj',
+                                responses = {'features':dtc.everything,
                                 'dtc':dtc,'model':cell_model,'params':param_values}
 
                             else:
@@ -264,16 +226,16 @@ class SweepProtocol(Protocol):
                             dtc = three_step_protocol(dtc)
 
                             if hasattr(dtc,'everything'):
-                                responses = {'features':dtc.everything,'name':'rheobase_inj',
+                                responses = {'features':dtc.everything,
                                 'dtc':dtc,'model':cell_model,'params':param_values}
                             else:
-                                responses = {'name':'rheobase_inj','model':dtc,'params':param_values}
-                    else:
-                        from neuronunit.optimisation.optimization_management import inject_model30
-                        vm30,vm15,_,_,dtc=inject_model30(dtc)
-                        responses = {'name':'rheobase_inj','response':vm15,'model':dtc,'params':param_values}
+                                responses = {'model':dtc,'params':param_values}
+                    #else:
+                    #    vm30,vm15,_,_,dtc=inject_model30(dtc)
+                    #    responses = {'response':vm15,'model':dtc,'params':param_values}
                     if hasattr(cell_model,'rheobase'):
                         responses['rheobase'] = cell_model.rheobase
+
 
                     return responses
 
@@ -283,19 +245,20 @@ class SweepProtocol(Protocol):
                     'SweepProtocol: Running of parameter set {%s} generated '
                     'an exception, returning None in responses',
                     str(param_values))
+
                 responses = {recording.name:
                              None for recording in self.recordings}
-            else:
-                responses = {
-                    recording.name: recording.response
-                    for recording in self.recordings}
+                #else:
+                #    responses = {
+                #        recording.name: recording.response
+                #        for recording in self.recordings}
 
-            self.destroy(sim=sim)
+                self.destroy(sim=sim)
 
-            cell_model.destroy(sim=sim)
+                cell_model.destroy(sim=sim)
 
-            cell_model.unfreeze(param_values.keys())
-            return responses
+                cell_model.unfreeze(param_values.keys())
+                return responses
         except BaseException:
             import sys
             import traceback
@@ -314,25 +277,9 @@ class SweepProtocol(Protocol):
 
         if isolate is None:
             isolate = True
-        '''
-        def _reduce_method(meth):
-            """Overwrite reduce"""
-            return (getattr, (meth.__self__, meth.__func__.__name__))
 
-        import copyreg
-        import types
-        copyreg.pickle(types.MethodType, _reduce_method)
-        '''
         if isolate:# and not cell_model.name in 'L5PC':
-            '''
-            try:
-                responses = self._run_func(cell_model=cell_model,
-                        param_values=param_values,
-                        sim=sim)
-            except:
-                responses = {recording.name:
-                None for recording in self.recordings}
-            '''
+
 
             def _reduce_method(meth):
                 """Overwrite reduce"""
@@ -351,17 +298,16 @@ class SweepProtocol(Protocol):
             ###
             # Foriegn code
             ###
-            #responses = self._run_func(cell_model=cell_model,param_values=param_values,sim=sim)
-            #import pdb
-            #pdb.set_trace()
-
-            if hasattr(cell_model,'backend'):
-                if str(cell_model.backend) not in "ADEXP":
-                    responses = self._run_func(cell_model=cell_model,
-                        param_values=param_values,
-                        sim=sim)
-                    return responses
-
+            #if hasattr(cell_model,'backend'):
+            #    if str(cell_model.backend) not in "ADEXP":
+            #        responses = self._run_func(cell_model=cell_model,
+            #            param_values=param_values,
+            #            sim=sim)
+            #        return responses
+            for param_name, param in param_values.items():
+                if type(param) is type(Parameter):
+                    if not param.frozen:
+                        print('passed')
             with pebble.ProcessPool(max_workers=1, max_tasks=1) as pool:
                 tasks = pool.schedule(self._run_func, kwargs={
                     'cell_model': cell_model,
@@ -381,6 +327,7 @@ class SweepProtocol(Protocol):
             responses = self._run_func(cell_model=cell_model,
                                        param_values=param_values,
                                        sim=sim)
+        '''
         new_responses = {}
         for k,v in responses.items():
             if hasattr(v,'response'):
@@ -400,6 +347,7 @@ class SweepProtocol(Protocol):
 
 
         responses.update(new_responses)
+        '''
         return responses
 
     def instantiate(self, sim=None, icell=None):
