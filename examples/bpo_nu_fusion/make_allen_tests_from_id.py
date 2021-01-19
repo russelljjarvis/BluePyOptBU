@@ -42,6 +42,7 @@ def closest(lst, K):
      idx = (np.abs(lst - K)).argmin()
      return idx
 
+<<<<<<< HEAD
 from elephant.statistics import isi
 from sklearn.linear_model import LinearRegression
 
@@ -134,6 +135,8 @@ del sweep_numbers
 del data_set
 return vm15,vm30,rheobase,currents,vmrh
 '''
+=======
+>>>>>>> 6072f03bf1e58526d60ee74e6513066a07f5a462
 
 def get_rheobase(numbers,sets):
     rheobase_numbers = [sweep_number for sweep_number in numbers if len(sets.get_spike_times(sweep_number))==1]
@@ -215,16 +218,28 @@ def get_model_parts_sweep_from_spk_cnt(spk_cnt,data_set,sweep_numbers,specimen_i
     #this_cnt_scheme = 0
     for sn in sweep_numbers:
         spike_times = data_set.get_spike_times(sn)
+<<<<<<< HEAD
         print(len(spike_times),spk_cnt)
         if len(spike_times) >= spk_cnt:
             print('yes hit')
+=======
+        #print(spike_times)
+        if len(spike_times) == spk_cnt:
+            #print('yes hit')
+>>>>>>> 6072f03bf1e58526d60ee74e6513066a07f5a462
             # stimulus is a numpy array in amps
             sweep_data = data_set.get_sweep(sn)
             stimulus = sweep_data['stimulus']
             reponse = sweep_data['response']
             if len(spike_times):
                 thresh_ = len(np.where(reponse>0))
+<<<<<<< HEAD
             '''
+=======
+            #print(response)
+            #import pdb
+            #pdb.set_trace()
+>>>>>>> 6072f03bf1e58526d60ee74e6513066a07f5a462
             if (len(spike_times) and np.max(reponse)<0) or len(spike_times) != thresh_:
                 reponse = [v+np.mean([0,np.abs(np.max(reponse))]) for v in reponse]
                 if np.max(reponse)<0:
@@ -233,12 +248,19 @@ def get_model_parts_sweep_from_spk_cnt(spk_cnt,data_set,sweep_numbers,specimen_i
                 assert np.min(reponse)<0
             '''
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 6072f03bf1e58526d60ee74e6513066a07f5a462
             sampling_rate = sweep_data['sampling_rate']
             vmm = AnalogSignal([v*1000 for v in reponse],sampling_rate=sampling_rate*qt.Hz,units=qt.mV)
             vmm = vmm[0:int(len(vmm)/2.1)]
             vmm.sn = None
             vmm.sn = sn
+<<<<<<< HEAD
             #print(vmm)
+=======
+>>>>>>> 6072f03bf1e58526d60ee74e6513066a07f5a462
 
             return vmm,stimulus,sn,spike_times
     return None,None,None,None

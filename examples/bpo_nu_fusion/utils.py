@@ -64,17 +64,6 @@ def make_evaluator(nu_tests,
 
 
     nu_tests[0].score_type = ZScore
-    '''
-    print(model)
-    simple_cell = epys.models.ADEXPModel(params=MODEL_PARAMS[model],backend=model)
-    simple_cell = epys.models.IzhiModel(params=MODEL_PARAMS[model],backend=model)
-    simple_cell = epys.models.MATModel(params=MODEL_PARAMS[model],backend=model)
-    import pdb
-    pdb.set_trace()
-    '''
-    #simple_cell = ephys.models.ReducedCellModel(
-    #    name='simple_cell',
-    #    params=MODEL_PARAMS[model],backend=model)
 
 
     if "GLIF" in model:

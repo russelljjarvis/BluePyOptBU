@@ -87,8 +87,37 @@ def _record_stats(stats, logbook, gen, population, invalid_count,cleanse_sins=Tr
 
 
 
-def _get_offspring(parents, toolbox, cxpb, mutpb, mu, wild=False):
+def _get_offspring(NGEN,parents, toolbox, cxpb, mutpb, mu, wild=False):
+    # Register the mate operator
+    print(dir(toolbox.mutate))
+    print(dir(toolbox.variate))
+
+    #import pdb
+    #pdb.set_trace()
+    '''
+    ETA = 5
+    toolbox.register(
+        "mate",
+        deap.tools.cxSimulatedBinaryBounded,
+        eta=ETA/NGEN,
+        low=LOWER,
+        up=UPPER)
+
+    # Register the mutation operator
+    toolbox.register(
+        "mutate",
+        deap.tools.mutPolynomialBounded,
+        eta=ETA/NGEN,
+        low=LOWER,
+        up=UPPER,
+        indpb=0.5)
+
+    # Register the variate operator
+    toolbox.register("variate", deap.algorithms.varAnd)
+    '''
     children = deap.algorithms.varOr(parents, toolbox, int(mu), cxpb, mutpb)
+
+    #children = toolbox.variate(parents, int(mu), cxpb, mutpb)
     for chromosome in children:
         for gene in chromosome:
             try:
@@ -164,6 +193,22 @@ def _check_stopping_criteria(criteria, params):
     else:
         return False
 
+def clean_record(population):
+    pop2 = copy.copy(population)
+    del population
+    cnt=0
+    for i,p in enumerate(pop2):
+        remove = False
+        for f in p.fitness.values:
+            if f==1000:
+                remove = True
+        if remove:
+            del pop2[i]
+            cnt+=1
+    #if cnt:
+    #    pop2.extend(pop2[0:cnt])
+    population = pop2
+    return population
 def eaAlphaMuPlusLambdaCheckpoint(
         population,
         toolbox,
@@ -230,21 +275,31 @@ def eaAlphaMuPlusLambdaCheckpoint(
 
     pbar = tqdm(total=ngen)
     while not(_check_stopping_criteria(stopping_criteria, stopping_params)):
-        offspring = _get_offspring(parents, toolbox, cxpb, mutpb, int(mu))
+        offspring = _get_offspring(ngen, parents, toolbox, cxpb, mutpb, int(mu))
         population = parents + offspring
         population.append(halloffame[0])
+
         flo = np.sum(halloffame[0].fitness.values)
         stopping_params.update({'hof':flo})
         stop = _check_stopping_criteria(stopping_criteria, stopping_params)
+        offspring = clean_record(offspring)
+
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
 
         _update_history_and_hof(halloffame, history, population)
-        _record_stats(stats, logbook, gen, population, invalid_count)
 
         ##
         # Throw away unfit genes
         ##
+        #print(toolbox.select)
+
         parents = toolbox.select(population, int(mu/5))
+
+        parents = clean_record(parents)
+        population = clean_record(population)
+
+        _record_stats(stats, logbook, gen, population, invalid_count)
+
         logger.info(logbook.stream)
 
         if(cp_filename and cp_frequency and
