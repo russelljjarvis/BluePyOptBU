@@ -89,8 +89,8 @@ def _record_stats(stats, logbook, gen, population, invalid_count,cleanse_sins=Tr
 
 def _get_offspring(NGEN,parents, toolbox, cxpb, mutpb, mu, wild=False):
     # Register the mate operator
-    print(dir(toolbox.mutate))
-    print(dir(toolbox.variate))
+    #print(dir(toolbox.mutate.args))
+    #print(dir(toolbox.variate.args))
 
     #import pdb
     #pdb.set_trace()
@@ -195,7 +195,7 @@ def _check_stopping_criteria(criteria, params):
 
 def clean_record(population):
     pop2 = copy.copy(population)
-    del population
+
     cnt=0
     for i,p in enumerate(pop2):
         remove = False
@@ -205,8 +205,13 @@ def clean_record(population):
         if remove:
             del pop2[i]
             cnt+=1
-    #if cnt:
-    #    pop2.extend(pop2[0:cnt])
+    for i,p in enumerate(pop2):
+        if cnt>0:
+            pop2.append(pop2[i])
+            cnt-=1
+
+
+    del population
     population = pop2
     return population
 def eaAlphaMuPlusLambdaCheckpoint(
@@ -276,13 +281,14 @@ def eaAlphaMuPlusLambdaCheckpoint(
     pbar = tqdm(total=ngen)
     while not(_check_stopping_criteria(stopping_criteria, stopping_params)):
         offspring = _get_offspring(ngen, parents, toolbox, cxpb, mutpb, int(mu))
+        offspring = clean_record(offspring)
+
         population = parents + offspring
         population.append(halloffame[0])
 
         flo = np.sum(halloffame[0].fitness.values)
         stopping_params.update({'hof':flo})
         stop = _check_stopping_criteria(stopping_criteria, stopping_params)
-        offspring = clean_record(offspring)
 
         invalid_count = _evaluate_invalid_fitness(toolbox, offspring)
 
@@ -293,7 +299,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
         ##
         #print(toolbox.select)
 
-        parents = toolbox.select(population, int(mu/5))
+        parents = toolbox.select(population, int(mu/4))
 
         parents = clean_record(parents)
         population = clean_record(population)

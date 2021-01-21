@@ -11,7 +11,7 @@ from sciunit.scores import ZScore
 from sciunit.scores.collections import ScoreArray
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-from neuronunit.optimisation.optimization_management import dtc_to_rheo, switch_logic,active_values
+from neuronunit.optimization.optimization_management import dtc_to_rheo, switch_logic,active_values
 from neuronunit.tests.base import AMPL, DELAY, DURATION
 import quantities as pq
 PASSIVE_DURATION = 500.0*pq.ms
@@ -20,20 +20,13 @@ import sciunit
 import numpy as np
 from bluepyopt.parameters import Parameter
 
-from neuronunit.optimisation.optimization_management import TSD
+from neuronunit.optimization.optimization_management import TSD
 
 def glif_specific_modifications(tests):
     tests = TSD(tests)
-    #tests.pop('RheobaseTest',None)
     tests.pop('InjectedCurrentAPAmplitudeTest',None)
     tests.pop('InjectedCurrentAPThresholdTest',None)
     tests.pop('InjectedCurrentAPWidthTest',None)
-    #tests.pop('InputResistanceTest',None)
-    #tests.pop('CapacitanceTest',None)
-    #tests.pop('TimeConstantTest',None)
-
-    
-
     return tests
 
 
@@ -44,7 +37,7 @@ def l5pc_specific_modifications(tests):
     tests.pop('CapacitanceTest',None)
     tests.pop('TimeConstantTest',None)
     #tests.pop('RestingPotentialTest',None)
-    
+
 
     return tests
 
@@ -59,7 +52,7 @@ def make_evaluator(nu_tests,
     nu_tests[0].score_type = ZScore
     simple_cell = ephys.models.ReducedCellModel(
         name='simple_cell',
-        params=MODEL_PARAMS[model],backend=model)  
+        params=MODEL_PARAMS[model],backend=model)
 
 
     if "GLIF" in model:
@@ -92,7 +85,7 @@ def make_evaluator(nu_tests,
             ft)
         objectives.append(objective)
 
-    score_calc = ephys.objectivescalculators.ObjectivesCalculator(objectives) 
+    score_calc = ephys.objectivescalculators.ObjectivesCalculator(objectives)
 
 
     sweep_protocols = []
@@ -113,7 +106,7 @@ def make_evaluator(nu_tests,
 
 def basic_expVar(trace1, trace2):
     # https://github.com/AllenInstitute/GLIF_Teeter_et_al_2018/blob/master/query_biophys/query_biophys_expVar.py
-    '''This is the fundamental calculation that is used in all different types of explained variation.  
+    '''This is the fundamental calculation that is used in all different types of explained variation.
     At a basic level, the explained variance is calculated between two traces.  These traces can be PSTH's
     or single spike trains that have been convolved with a kernel (in this case always a Gaussian)
     Input:
@@ -122,7 +115,7 @@ def basic_expVar(trace1, trace2):
     Returns:
         expVar:  float value of explained variance
     '''
-    
+
     var_trace1=np.var(trace1)
     var_trace2=np.var(trace2)
     var_trace1_minus_trace2=np.var(trace1-trace2)
@@ -140,7 +133,7 @@ def hof_to_euclid(hof,MODEL_PARAMS,target):
     subset = list(MODEL_PARAMS.keys())
     tg = target.dtc_to_gene(subset_params=subset)
     if len(MODEL_PARAMS)==1:
-        
+
         ax = plt.subplot()
         for k,v in MODEL_PARAMS.items():
             lengths[k] = np.abs(np.abs(v[1])-np.abs(v[0]))
@@ -157,14 +150,14 @@ def hof_to_euclid(hof,MODEL_PARAMS,target):
         ax.legend()
 
         plt.show()
-    
-    
+
+
     if len(MODEL_PARAMS)==2:
-        
+
         ax = plt.subplot()
         for k,v in MODEL_PARAMS.items():
             lengths[k] = np.abs(np.abs(v[1])-np.abs(v[0]))
-                
+
             if cnt==0:
                 tgenex = tg[cnt]
                 x = [h[cnt] for h in hof]
@@ -190,7 +183,7 @@ def hof_to_euclid(hof,MODEL_PARAMS,target):
         ax = fig.add_subplot(111, projection='3d')
         for k,v in MODEL_PARAMS.items():
             lengths[k] = np.abs(np.abs(v[1])-np.abs(v[0]))
-        
+
             if cnt==0:
                 tgenex = tg[cnt]
 
@@ -215,7 +208,7 @@ def hof_to_euclid(hof,MODEL_PARAMS,target):
         ax.scatter(tgenex, tgeney,tgenez, c='b', marker='*',label='target',s=11)
 
         plt.show()
-        
+
 
 def initialise_test(v,rheobase):
     v = switch_logic([v])
@@ -223,7 +216,7 @@ def initialise_test(v,rheobase):
     k = v.name
     if not hasattr(v,'params'):
         v.params = {}
-    if not 'injected_square_current' in v.params.keys():    
+    if not 'injected_square_current' in v.params.keys():
         v.params['injected_square_current'] = {}
     if v.passive == False and v.active == True:
         keyed = v.params['injected_square_current']
@@ -239,8 +232,8 @@ def initialise_test(v,rheobase):
     if v.name in str('RestingPotentialTest'):
         v.params['injected_square_current']['delay'] = PASSIVE_DELAY
         v.params['injected_square_current']['duration'] = PASSIVE_DURATION
-        v.params['injected_square_current']['amplitude'] = 0.0*pq.pA    
-        
+        v.params['injected_square_current']['amplitude'] = 0.0*pq.pA
+
     return v
 from sciunit.scores import ZScore
 import bluepyopt as bpop
@@ -283,7 +276,7 @@ class NUFeature_standard_suite(object):
                     # works 1/2 time that log_norm_score does not work
                     # more informative than nominal bad score 100
 
-                    lns = np.abs(np.float(score_gene.raw))    
+                    lns = np.abs(np.float(score_gene.raw))
             else:
                 #print(prediction,self.test.observation)
                 #print(score_gene,'\n\n\n')

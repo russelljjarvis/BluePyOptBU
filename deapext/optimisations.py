@@ -96,7 +96,7 @@ class DEAPOptimisation(bluepyopt.optimisations.Optimisation):
                  use_scoop=False,
                  seed=1,
                  offspring_size=10,
-                 eta=10,
+                 eta=2.5,
                  mutpb=1.0,
                  cxpb=1.0,
                  map_function=None,

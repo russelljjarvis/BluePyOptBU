@@ -1,13 +1,13 @@
 """
 BPO front end for reduced neural models
-"""  	
+"""
 
 import pandas as pd
-import numpy as np                       
+import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go # or plotly.express as px
-import sklearn   
+import sklearn
 import os
 # sense if running on heroku
 if 'DYNO' in os.environ:
@@ -46,12 +46,11 @@ from scipy.stats import norm
 from neuronunit.optimisation.optimization_management import instance_opt
 from neuronunit.optimisation.optimization_management import plot_as_normal
 from neuronunit.tests import *
+import quantities as qt
+from sciunit import TestSuite
+from sciunit.scores import ZScore, RatioScore
+
 def make_allen():
-  import quantities as qt
-
-  from sciunit import TestSuite
-
-  from sciunit.scores import ZScore, RatioScore
 
   rt = RheobaseTest(observation={'mean':70*qt.pA,'std':70*qt.pA})
   tc = TimeConstantTest(observation={'mean':24.4*qt.ms,'std':24.4*qt.ms})
@@ -87,7 +86,7 @@ def make_allen():
           vsd = TSD(v)
           if k1 in vsd.keys():
               vsd[k1].observation['mean']
-              
+
               observations[k1] = np.round(vsd[k1].observation['mean'],2)
               observations['name'] = k
       list_of_dicts.append(observations)
@@ -139,26 +138,26 @@ def plot_imshow_plotly(df):
     heat = go.Heatmap(df_to_plotly(df))
     #fig = go.Figure(data=
 
-    title = 'Lognorm Score Matrix NeuronUnit'               
+    title = 'Lognorm Score Matrix NeuronUnit'
 
-    layout = go.Layout(title_text=title, title_x=0.5, 
+    layout = go.Layout(title_text=title, title_x=0.5,
                     width=600, height=600,
                     xaxis_showgrid=True,
                     yaxis_showgrid=True)
-    
-    fig=go.Figure(data=[heat], layout=layout)      
+
+    fig=go.Figure(data=[heat], layout=layout)
 
     st.write(fig)
 
 
-if __name__ == "__main__":  
+if __name__ == "__main__":
     allen_suite471819401,allen_suite482493761,df = make_allen_tests()
     st.title('Reduced Model Fitting to Neuroelectro Experimental Constraints')
     st.markdown('------')
     st.markdown('Select the measurements you want to use to guide fitting')
- 
-    
-    
+
+
+
     experimental_constraints.pop("Olfactory bulb (main) mitral cell")
     olf_bulb = {'mitral olfactory bulb cell':olfactory_bulb_constraints}
     experimental_constraints.update(olf_bulb)
@@ -172,11 +171,11 @@ if __name__ == "__main__":
       view data in detail?"
       ,("No","Yes"))
     if view_data_in_detail=="Yes":
-      df = display_fitting_data()  
+      df = display_fitting_data()
       st.table(df)
 
     experimental_constraints = TSD(experimental_constraints[test_key])
-    
+
     test_keys = list(experimental_constraints.keys())
     subset_tests = st.sidebar.radio("\
 		Would you like to fit models on a subset of tests?"
@@ -213,8 +212,8 @@ if __name__ == "__main__":
 
     if readiness == "Yes":
       instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN,diversity,full_test_list,use_streamlit=True)
-      
-     
+
+
       if model_value == "ADEXP":
         st.markdown('''
         In the {2} Model:
@@ -236,7 +235,7 @@ if __name__ == "__main__":
         ms, to find unkown rheoase value it takes {1} seconds'''.format(3.36,0.7,model_value))
 
 
- 
+
       '''
       # Do you want to try again on a different model to see how that would look?
       '''
@@ -250,4 +249,3 @@ if __name__ == "__main__":
       ,("ADEXP","IZHI","NEURONHH"))
       if another_go == "Yes" and (new_model_value is not model_value):
         instance_opt(experimental_constraints,MODEL_PARAMS,test_key,model_value,MU,NGEN,diversity,full_test_list,use_streamlit=True)
-

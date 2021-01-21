@@ -168,10 +168,6 @@ class SweepProtocol(Protocol):
         """Run protocols"""
 
         try:
-
-            ##
-            # this new block could be a failure cause
-            ##
             cell_model.freeze(param_values)
             cell_model.instantiate(sim=sim)
             try:
@@ -185,8 +181,6 @@ class SweepProtocol(Protocol):
                 if not hasattr(cell_model,'NU'):
                     self.cvode_active = False
                     sim.run(self.total_duration, cvode_active=self.cvode_active)
-
-
                 else:
                     # first populate the dtc by frozen default attributes
                     # then update with dynamic gene attributes as appropriate.
@@ -196,21 +190,19 @@ class SweepProtocol(Protocol):
                     else:
                         attrs = cell_model.default_attrs
                         attrs.update(copy.copy(param_values))
-                        assert attrs is not None
                         assert len(param_values)
-
+                    assert attrs is not None
                     dtc = cell_model.model_to_dtc(attrs=attrs)
-                    dtc.backend = cell_model.backend
+                    assert dtc.backend == cell_model.backend
                     dtc._backend = cell_model._backend
 
                     if hasattr(cell_model,'allen'):
 
-
-
-                        from neuronunit.optimization.optimization_management import three_step_protocol
                         if hasattr(cell_model,'seeded_current'):
                             dtc.seeded_current = cell_model.seeded_current
                             dtc.spk_count = cell_model.spk_count
+                            from neuronunit.optimization.optimization_management import three_step_protocol
+
                             dtc = three_step_protocol(dtc,solve_for_current=cell_model.seeded_current)
                             if hasattr(dtc,'everything'):
                                 responses = {'features':dtc.everything,'name':'rheobase_inj',
@@ -227,14 +219,18 @@ class SweepProtocol(Protocol):
                                 responses = {'features':dtc.everything,
                                 'dtc':dtc,'model':cell_model,'params':param_values}
                             else:
-                                responses = {'model':dtc,
+                                responses = {'model':cell_model,
                                 'rheobase':cell_model.rheobase,'params':param_values}
                     else:
-                        vm = cell_model.inject_model()
-
+                        from neuronunit.optimization.optimization_management import dtc_to_rheo
+                        dtc = dtc_to_rheo(dtc,bind_vm=True)
+                        #print(dtc.rheobase)
                         responses = {
-                        'response':vm,'model':dtc,
-                        'rheobase':cell_model.rheobase,'params':param_values}
+                            'response':dtc.vmrh,
+                            'model':dtc.dtc_to_model(),
+                            'dtc':dtc,
+                            'rheobase':dtc.rheobase,
+                            'params':param_values}
                     return responses
 
 
