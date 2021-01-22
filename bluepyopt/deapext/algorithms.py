@@ -70,6 +70,7 @@ def _update_history_and_hof(halloffame, history, population):
 
 def _record_stats(stats, logbook, gen, population, invalid_count,cleanse_sins=True):
     '''Update the statistics with the new population'''
+
     if cleanse_sins:
         pop2 = copy.copy(population)
         for i,p in enumerate(pop2):
@@ -81,6 +82,7 @@ def _record_stats(stats, logbook, gen, population, invalid_count,cleanse_sins=Tr
                 del pop2[i]
         record = stats.compile(pop2) if stats is not None else {}
     else:
+
         record = stats.compile(population) if stats is not None else {}
 
     logbook.record(gen=gen, nevals=invalid_count, **record)
@@ -299,7 +301,7 @@ def eaAlphaMuPlusLambdaCheckpoint(
         ##
         #print(toolbox.select)
 
-        parents = toolbox.select(population, int(mu/4))
+        parents = toolbox.select(population, int(mu/5))
 
         parents = clean_record(parents)
         population = clean_record(population)
