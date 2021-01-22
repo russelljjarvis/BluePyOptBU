@@ -224,7 +224,7 @@ class SweepProtocol(Protocol):
                     else:
                         from neuronunit.optimization.optimization_management import dtc_to_rheo
                         dtc = dtc_to_rheo(dtc,bind_vm=True)
-                        #print(dtc.rheobase)
+
                         responses = {
                             'response':dtc.vmrh,
                             'model':dtc.dtc_to_model(),
